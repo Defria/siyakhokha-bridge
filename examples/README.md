@@ -6,11 +6,20 @@ This guide mirrors the Home Assistant setup used in this project so you can repl
 
 Screenshots are included in `examples/screenshots/`:
 
-- ![Siyakhokha dashboard 1](./screenshots/siyakhokha_dashboard1.png)
-- ![Siyakhokha dashboard 2](./screenshots/siyakhokha_dashboard2.png)
-- ![Siyakhokha dashboard 3](./screenshots/siyakhokha_dashboard3.png)
-- ![Siyakhokha dashboard 4](./screenshots/siyakhokha_dashboard4.png)
-- ![Siyakhokha dashboard 5](./screenshots/siyakhokha_dashboard5.png)
+<table>
+  <tr>
+    <td><img src="./screenshots/siyakhokha_dashboard1.png" alt="Siyakhokha dashboard 1" /></td>
+    <td><img src="./screenshots/siyakhokha_dashboard2.png" alt="Siyakhokha dashboard 2" /></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/siyakhokha_dashboard3.png" alt="Siyakhokha dashboard 3" /></td>
+    <td><img src="./screenshots/siyakhokha_dashboard4.png" alt="Siyakhokha dashboard 4" /></td>
+  </tr>
+  <tr>
+    <td><img src="./screenshots/siyakhokha_dashboard5.png" alt="Siyakhokha dashboard 5" /></td>
+    <td><img src="./screenshots/prepaid_meter_dashboard1.png" alt="Prepaid meter dashboard 1" /></td>
+  </tr>
+</table>
 
 ## Files Included
 

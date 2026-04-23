@@ -21,9 +21,20 @@
 
 Visual preview from the included dashboard setup:
 
-![Siyakhokha dashboard preview 1](./examples/screenshots/siyakhokha_dashboard1.png)
-![Siyakhokha dashboard preview 2](./examples/screenshots/siyakhokha_dashboard3.png)
-![Siyakhokha dashboard preview 3](./examples/screenshots/siyakhokha_dashboard5.png)
+<table>
+  <tr>
+    <td><img src="./examples/screenshots/siyakhokha_dashboard1.png" alt="Siyakhokha dashboard preview 1" /></td>
+    <td><img src="./examples/screenshots/siyakhokha_dashboard2.png" alt="Siyakhokha dashboard preview 2" /></td>
+  </tr>
+  <tr>
+    <td><img src="./examples/screenshots/siyakhokha_dashboard3.png" alt="Siyakhokha dashboard preview 3" /></td>
+    <td><img src="./examples/screenshots/siyakhokha_dashboard4.png" alt="Siyakhokha dashboard preview 4" /></td>
+  </tr>
+  <tr>
+    <td><img src="./examples/screenshots/siyakhokha_dashboard5.png" alt="Siyakhokha dashboard preview 5" /></td>
+    <td><img src="./examples/screenshots/prepaid_meter_dashboard1.png" alt="Prepaid meter dashboard preview" /></td>
+  </tr>
+</table>
 
 For the full screenshot set and replication guide, see `examples/README.md`.
 
