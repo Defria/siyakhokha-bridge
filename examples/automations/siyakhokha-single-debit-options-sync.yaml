@@ -1,0 +1,80 @@
+alias: Siyakhokha Single Debit Options Sync
+description: Keep single debit bank/account dropdown options aligned to latest context
+triggers:
+  - trigger: state
+    entity_id: sensor.latest_bill_amount
+  - trigger: homeassistant
+    event: start
+conditions: []
+actions:
+  - variables:
+      ctx: "{{ state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) }}"
+      banks: "{{ ctx.get('bank_accounts', []) if ctx is mapping else [] }}"
+      accts: "{{ ctx.get('municipal_accounts', []) if ctx is mapping else [] }}"
+      bank_options: >-
+        {% set ns = namespace(opts=['Auto (resolved)']) %}
+        {% for b in banks %}
+          {% if b is mapping %}
+            {% set bid = b.id | default('') | string | trim %}
+            {% if bid is match('^[0-9]+$') %}
+              {% set label = b.label | default('Bank account') | string | trim %}
+              {% set item = bid ~ ' - ' ~ label %}
+              {% if item not in ns.opts %}
+                {% set ns.opts = ns.opts + [item] %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.opts }}
+      account_options: >-
+        {% set ns = namespace(opts=['Auto (resolved)']) %}
+        {% for a in accts %}
+          {% if a is mapping %}
+            {% set aid = a.id | default('') | string | trim %}
+            {% if aid is match('^[0-9]+$') %}
+              {% set label = a.label | default('Municipal account') | string | trim %}
+              {% set item = aid ~ ' - ' ~ label %}
+              {% if item not in ns.opts %}
+                {% set ns.opts = ns.opts + [item] %}
+              {% endif %}
+            {% endif %}
+          {% endif %}
+        {% endfor %}
+        {{ ns.opts }}
+
+  - action: input_select.set_options
+    target:
+      entity_id: input_select.siyakhokha_single_bank_account_choice
+    data:
+      options: "{{ bank_options }}"
+
+  - action: input_select.set_options
+    target:
+      entity_id: input_select.siyakhokha_single_account_choice
+    data:
+      options: "{{ account_options }}"
+
+  - variables:
+      current_bank: "{{ states('input_select.siyakhokha_single_bank_account_choice') }}"
+      current_account: "{{ states('input_select.siyakhokha_single_account_choice') }}"
+
+  - if:
+      - condition: template
+        value_template: "{{ current_bank not in bank_options }}"
+    then:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.siyakhokha_single_bank_account_choice
+        data:
+          option: Auto (resolved)
+
+  - if:
+      - condition: template
+        value_template: "{{ current_account not in account_options }}"
+    then:
+      - action: input_select.select_option
+        target:
+          entity_id: input_select.siyakhokha_single_account_choice
+        data:
+          option: Auto (resolved)
+mode: single

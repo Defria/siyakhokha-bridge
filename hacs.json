@@ -1,0 +1,9 @@
+{
+  "name": "Siyakhokha Bridge",
+  "country": "ZA",
+  "homeassistant": "2025.1.0",
+  "content_in_root": false,
+  "filename": "custom_components/siyakhokha_bridge/manifest.json",
+  "render_readme": true,
+  "zip_release": false
+}

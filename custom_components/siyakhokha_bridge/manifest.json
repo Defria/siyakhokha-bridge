@@ -1,0 +1,12 @@
+{
+  "domain": "siyakhokha_bridge",
+  "name": "Siyakhokha Bridge",
+  "codeowners": ["@defria"],
+  "config_flow": true,
+  "documentation": "https://github.com/defria/siyakhokha-bridge",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "loggers": ["custom_components.siyakhokha_bridge"],
+  "requirements": ["pypdf>=4.3.1"],
+  "version": "0.1.14"
+}

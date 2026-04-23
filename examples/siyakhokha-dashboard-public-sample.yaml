@@ -1,0 +1,353 @@
+views:
+  - theme: Backend-selected
+    title: Siyakhokha Payments (Sample)
+    path: siyakhokha-payments-sample
+    type: sidebar
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-title-card
+        title: Public Siyakhokha Dashboard Sample
+        subtitle: Single debit order UX with dropdowns and payload debug popups
+
+      - type: markdown
+        content: |
+          ## Single Debit Order
+
+          This sample keeps account selectors visible even when only one option exists,
+          so users are already familiar with the dropdown UX when additional accounts
+          are added later.
+
+          Keep **Dry Run** enabled while validating.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #9C27B0;
+            }
+
+      - type: entities
+        title: Single Debit Order (Simple)
+        show_header_toggle: false
+        entities:
+          - entity: input_number.siyakhokha_single_amount
+            name: Amount (R)
+          - entity: input_select.siyakhokha_single_bank_account_choice
+            name: Bank Account
+          - entity: input_select.siyakhokha_single_account_choice
+            name: Municipal Account
+          - entity: input_boolean.siyakhokha_single_dry_run
+            name: Dry Run (recommended ON)
+          - entity: input_boolean.siyakhokha_single_show_advanced
+            name: Show Advanced / Raw Overrides
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: custom:mushroom-template-card
+        primary: Submit Single Debit Order
+        secondary: >-
+          {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+          {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+          {% set bank_sel = states('input_select.siyakhokha_single_bank_account_choice') %}
+          {% set acct_sel = states('input_select.siyakhokha_single_account_choice') %}
+          {% set bank_val = bank_sel if bank_sel not in ['unknown', 'unavailable', '', 'Auto (resolved)'] else ('Auto ' ~ r.get('bank_account_id', 'n/a')) %}
+          {% set acct_val = acct_sel if acct_sel not in ['unknown', 'unavailable', '', 'Auto (resolved)'] else ('Auto ' ~ r.get('account_id', 'n/a')) %}
+          Bank {{ bank_val }} · Account {{ acct_val }} ·
+          R{{ states('input_number.siyakhokha_single_amount') | float(0) | round(2) }} ·
+          Dry run {{ 'ON' if is_state('input_boolean.siyakhokha_single_dry_run', 'on') else 'OFF' }}
+        icon: mdi:bank-transfer
+        color: deep-purple
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.siyakhokha_submit_single_debit_order
+          confirmation:
+            text: Confirm single debit-order action from dashboard values.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+          {% set banks = ctx.get('bank_accounts', []) if ctx is mapping else [] %}
+          {% set accts = ctx.get('municipal_accounts', []) if ctx is mapping else [] %}
+          {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+          {% set bank_sel = states('input_select.siyakhokha_single_bank_account_choice') %}
+          {% set acct_sel = states('input_select.siyakhokha_single_account_choice') %}
+
+          ## Resolved Context (Read-only)
+
+          - Selected bank option: `{{ bank_sel }}`
+          - Selected municipal option: `{{ acct_sel }}`
+          - Resolved bank id: `{{ r.get('bank_account_id', 'n/a') }}`
+          - Resolved account id: `{{ r.get('account_id', 'n/a') }}`
+          - Bank options discovered: `{{ banks | count }}`
+          - Municipal account options discovered: `{{ accts | count }}`
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #7E57C2;
+            }
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Bank Details Payload
+            secondary: Selected bank option as raw JSON
+            icon: mdi:bank-outline
+            color: indigo
+            tap_action:
+              action: navigate
+              navigation_path: '#sample-bank-details-payload'
+          - type: custom:mushroom-template-card
+            primary: Full Context Payload
+            secondary: Raw single_debit_context JSON
+            icon: mdi:code-json
+            color: blue
+            tap_action:
+              action: navigate
+              navigation_path: '#sample-single-debit-context-payload'
+
+      - type: custom:mushroom-template-card
+        primary: Effective Submission Payload
+        secondary: Final payload HA will submit
+        icon: mdi:send-check-outline
+        color: green
+        tap_action:
+          action: navigate
+          navigation_path: '#sample-effective-submit-payload'
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#sample-bank-details-payload'
+            name: Selected Bank Details Payload
+            icon: mdi:bank-outline
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+              {% set banks = ctx.get('bank_accounts', []) if ctx is mapping else [] %}
+              {% set selected_option = states('input_select.siyakhokha_single_bank_account_choice') | string %}
+              {% set selected_id = selected_option.split(' - ')[0] | trim %}
+              {% set ns = namespace(bank=none) %}
+
+              {% if selected_id is match('^[0-9]+$') %}
+                {% for b in banks %}
+                  {% if b is mapping and (b.id | string) == selected_id %}
+                    {% set ns.bank = b %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              {% if ns.bank is none %}
+                {% for b in banks %}
+                  {% if b is mapping and b.selected | default(false) %}
+                    {% set ns.bank = b %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              ## Selected Bank Details (Raw)
+
+              {% if ns.bank is mapping %}
+              <pre>{{ ns.bank | to_json(pretty_print=True) }}</pre>
+              {% else %}
+              <p><em>No selected bank payload available yet.</em></p>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #3F51B5;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.86em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#sample-single-debit-context-payload'
+            name: Single Debit Context Payload
+            icon: mdi:code-json
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+
+              ## `single_debit_context` (Raw)
+
+              {% if ctx is mapping and ctx | count > 0 %}
+              <pre>{{ ctx | to_json(pretty_print=True) }}</pre>
+              {% else %}
+              <p><em>No single debit context payload available yet.</em></p>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #2196F3;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.82em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#sample-effective-submit-payload'
+            name: Effective Submission Payload
+            icon: mdi:send-check-outline
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+              {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+              {% set bank_override = states('input_text.siyakhokha_single_bank_account_override') | trim %}
+              {% set account_override = states('input_text.siyakhokha_single_account_override') | trim %}
+              {% set bank_selected = states('input_select.siyakhokha_single_bank_account_choice') | trim %}
+              {% set account_selected = states('input_select.siyakhokha_single_account_choice') | trim %}
+              {% set bank_selected_id = bank_selected.split(' - ')[0] | trim %}
+              {% set account_selected_id = account_selected.split(' - ')[0] | trim %}
+              {% set entry_id = states('input_text.siyakhokha_entry_id') | trim %}
+              {% set amount = states('input_number.siyakhokha_single_amount') | float(0) %}
+              {% set dry_run = is_state('input_boolean.siyakhokha_single_dry_run', 'on') %}
+
+              {% set bank_final = 0 %}
+              {% set account_final = 0 %}
+              {% set bank_source = 'auto_resolve' %}
+              {% set account_source = 'auto_resolve' %}
+
+              {% if bank_override is match('^[0-9]+$') and (bank_override | int(0)) > 0 %}
+                {% set bank_final = bank_override | int(0) %}
+                {% set bank_source = 'override' %}
+              {% elif bank_selected_id is match('^[0-9]+$') and (bank_selected_id | int(0)) > 0 %}
+                {% set bank_final = bank_selected_id | int(0) %}
+                {% set bank_source = 'dropdown' %}
+              {% endif %}
+
+              {% if account_override is match('^[0-9]+$') and (account_override | int(0)) > 0 %}
+                {% set account_final = account_override | int(0) %}
+                {% set account_source = 'override' %}
+              {% elif account_selected_id is match('^[0-9]+$') and (account_selected_id | int(0)) > 0 %}
+                {% set account_final = account_selected_id | int(0) %}
+                {% set account_source = 'dropdown' %}
+              {% endif %}
+
+              {% set payload = {
+                'entry_id': entry_id,
+                'amount': amount,
+                'confirm': True,
+                'dry_run': dry_run,
+                'effective': {
+                  'bank_account_id': bank_final if bank_final > 0 else r.get('bank_account_id', none),
+                  'account_id': account_final if account_final > 0 else r.get('account_id', none),
+                  'bank_id_source': bank_source,
+                  'account_id_source': account_source
+                },
+                'service_payload': {
+                  'entry_id': entry_id,
+                  'amount': amount,
+                  'confirm': True,
+                  'dry_run': dry_run,
+                  'bank_account_id': bank_final if bank_final > 0 else none,
+                  'account_id': account_final if account_final > 0 else none
+                }
+              } %}
+
+              ## Effective Submit Payload (Raw)
+
+              <pre>{{ payload | to_json(pretty_print=True) }}</pre>
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #4CAF50;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.82em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: conditional
+        conditions:
+          - entity: input_boolean.siyakhokha_single_show_advanced
+            state: 'on'
+        card:
+          type: entities
+          title: Advanced Overrides (Power Users)
+          show_header_toggle: false
+          entities:
+            - entity: input_text.siyakhokha_single_bank_account_override
+              name: Override Bank Account ID
+            - entity: input_text.siyakhokha_single_account_override
+              name: Override Municipal Account ID
+          card_mod:
+            style: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #9C27B0;
+              }

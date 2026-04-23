@@ -1,0 +1,66 @@
+alias: 'Siyakhokha: Submit single debit order from dashboard controls'
+description: Submits a single debit order from dashboard helper values. Resolves
+  account IDs automatically from /DebitOrder context. Uses dry-run by default.
+triggers:
+- trigger: state
+  entity_id: input_button.siyakhokha_submit_single_debit_order
+conditions: []
+actions:
+- choose:
+  - conditions:
+    - condition: template
+      value_template: "{{ states('input_text.siyakhokha_entry_id') | trim != '' }}"
+    sequence:
+    - variables:
+        bank_override: "{{ states('input_text.siyakhokha_single_bank_account_override') | trim }}"
+        account_override: "{{ states('input_text.siyakhokha_single_account_override') | trim }}"
+        bank_selected: "{{ states('input_select.siyakhokha_single_bank_account_choice') | trim }}"
+        account_selected: "{{ states('input_select.siyakhokha_single_account_choice') | trim }}"
+        bank_selected_id: >-
+          {% set prefix = bank_selected.split(' - ')[0] | trim %}
+          {{ prefix if prefix is match('^[0-9]+$') else '' }}
+        account_selected_id: >-
+          {% set prefix = account_selected.split(' - ')[0] | trim %}
+          {{ prefix if prefix is match('^[0-9]+$') else '' }}
+        bank_final: >-
+          {% if bank_override is match('^[0-9]+$') and (bank_override | int(0)) > 0 %}
+            {{ bank_override | int(0) }}
+          {% elif bank_selected_id is match('^[0-9]+$') and (bank_selected_id | int(0)) > 0 %}
+            {{ bank_selected_id | int(0) }}
+          {% else %}
+            0
+          {% endif %}
+        account_final: >-
+          {% if account_override is match('^[0-9]+$') and (account_override | int(0)) > 0 %}
+            {{ account_override | int(0) }}
+          {% elif account_selected_id is match('^[0-9]+$') and (account_selected_id | int(0)) > 0 %}
+            {{ account_selected_id | int(0) }}
+          {% else %}
+            0
+          {% endif %}
+    - choose:
+      - conditions:
+        - condition: template
+          value_template: "{{ bank_final | int(0) > 0 and account_final | int(0) > 0 }}"
+        sequence:
+        - action: siyakhokha_bridge.submit_single_debit_order_simple
+          data:
+            entry_id: "{{ states('input_text.siyakhokha_entry_id') | trim }}"
+            amount: "{{ states('input_number.siyakhokha_single_amount') | float(0) }}"
+            bank_account_id: "{{ bank_final | int(0) }}"
+            account_id: "{{ account_final | int(0) }}"
+            confirm: true
+            dry_run: "{{ is_state('input_boolean.siyakhokha_single_dry_run', 'on') }}"
+      default:
+      - action: siyakhokha_bridge.submit_single_debit_order_simple
+        data:
+          entry_id: "{{ states('input_text.siyakhokha_entry_id') | trim }}"
+          amount: "{{ states('input_number.siyakhokha_single_amount') | float(0) }}"
+          confirm: true
+          dry_run: "{{ is_state('input_boolean.siyakhokha_single_dry_run', 'on') }}"
+  default:
+  - action: persistent_notification.create
+    data:
+      title: Siyakhokha single debit order not submitted
+      message: Set `input_text.siyakhokha_entry_id` first, then tap Submit Single Debit Order again.
+mode: single

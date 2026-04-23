@@ -1,0 +1,1998 @@
+views:
+  - theme: Backend-selected
+    title: Siyakhokha
+    path: siyakhokha
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}
+            💰 Credit Balance · R{{ (amount | abs) | round(2) }}
+          {% elif amount == 0 %}
+            ✅ Account Settled
+          {% else %}
+            📄 Amount Due · R{{ amount | round(2) }}
+          {% endif %}
+        secondary: >-
+          {% set date = states('sensor.latest_bill_date') %}
+          {% set count = state_attr('sensor.latest_bill_amount', 'bill_count_loaded') | int(0) %}
+          {% set acct = state_attr('sensor.latest_bill_amount', 'account_number') | default('—') %}
+          Account {{ acct }} · Bill date: {{ date }} · {{ count }} bill(s) loaded
+        icon: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}mdi:cash-plus
+          {% elif amount == 0 %}mdi:check-circle
+          {% else %}mdi:cash-clock
+          {% endif %}
+        entity: sensor.latest_bill_amount
+        fill_container: true
+        multiline_secondary: true
+        badge_icon: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}mdi:arrow-down-bold-circle
+          {% elif amount == 0 %}mdi:check-decagram
+          {% else %}mdi:alert-circle
+          {% endif %}
+        badge_color: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}green
+          {% elif amount == 0 %}green
+          {% else %}red
+          {% endif %}
+        color: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}green
+          {% elif amount == 0 %}cyan
+          {% else %}red
+          {% endif %}
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.4) !important;
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(255,255,255,0.08);
+            }
+
+      - type: custom:mushroom-chips-card
+        alignment: center
+        chips:
+          - type: template
+            icon: mdi:currency-zar
+            icon_color: >-
+              {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+              {% if amount < 0 %}green{% elif amount == 0 %}cyan{% else %}red{% endif %}
+            content: >-
+              {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+              {% if amount < 0 %}Credit R{{ (amount | abs) | round(2) }}
+              {% elif amount == 0 %}R0.00
+              {% else %}Due R{{ amount | round(2) }}
+              {% endif %}
+            entity: sensor.latest_bill_amount
+          - type: template
+            icon: mdi:calendar
+            icon_color: cyan
+            content: '{{ states("sensor.latest_bill_date") }}'
+            entity: sensor.latest_bill_date
+          - type: template
+            icon: mdi:file-document-multiple
+            icon_color: blue
+            content: >-
+              {{ state_attr('sensor.latest_bill_amount', 'bill_count_loaded') | int(0) }} loaded
+            entity: sensor.latest_bill_amount
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.3) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-radius: 12px !important;
+              padding: 4px 0;
+            }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Actions
+            card_mod:
+              style: |
+                ha-card { background: none !important; }
+          - type: horizontal-stack
+            cards:
+              - type: custom:mushroom-template-card
+                primary: Refresh Bills
+                secondary: Fetch latest from Siyakhokha
+                icon: mdi:refresh
+                entity: button.refresh_bills
+                tap_action:
+                  action: call-service
+                  service: button.press
+                  target:
+                    entity_id: button.refresh_bills
+                  confirmation:
+                    text: Refresh bills from Siyakhokha portal?
+                color: cyan
+                card_mod:
+                  style: |
+                    ha-card {
+                      background: rgba(0,0,0,0.35) !important;
+                      backdrop-filter: blur(8px);
+                      border: 1px solid rgba(255,255,255,0.06);
+                    }
+              - type: custom:mushroom-template-card
+                primary: Open Graphs
+                secondary: Year trends and charts
+                icon: mdi:chart-bar
+                tap_action:
+                  action: navigate
+                  navigation_path: /dashboard-siyakhokha/siyakhokha-graphs
+                color: teal
+                card_mod:
+                  style: |
+                    ha-card {
+                      background: rgba(0,0,0,0.35) !important;
+                      backdrop-filter: blur(8px);
+                      border: 1px solid rgba(255,255,255,0.06);
+                    }
+
+      - type: custom:mushroom-template-card
+        primary: PDF Status
+        secondary: >-
+          {% if states('sensor.latest_bill_pdf_url') not in ['unknown', 'unavailable', 'None', ''] %}
+            Downloadable PDF bills are available in Bill History.
+          {% else %}
+            No downloadable PDF bill is currently available.
+          {% endif %}
+        icon: >-
+          {% if states('sensor.latest_bill_pdf_url') not in ['unknown', 'unavailable', 'None', ''] %}mdi:file-check{% else %}mdi:file-alert-outline{% endif %}
+        color: >-
+          {% if states('sensor.latest_bill_pdf_url') not in ['unknown', 'unavailable', 'None', ''] %}green{% else %}amber{% endif %}
+        tap_action:
+          action: none
+        hold_action:
+          action: none
+        double_tap_action:
+          action: none
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid rgba(76,175,80,0.8);
+            }
+
+      - type: markdown
+        content: >-
+          ## Bill History
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set total = state_attr('sensor.latest_bill_amount', 'total') | int(0) %}
+          {% if bills | length == 0 %}
+          <p><em>No bills loaded yet. Tap Refresh Bills above.</em></p>
+          {% else %}
+          <p><em>Showing {{ bills|length }} bill(s){% if total > 0 %} of {{ total }} total{% endif %}.</em></p>
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>#</b></td>
+              <td align="left"><b>Date</b></td>
+              <td align="right"><b>Amount</b></td>
+              <td align="center"><b>Local Pdf</b></td>
+              <td align="center"><b>Portal Pdf</b></td>
+            </tr>
+            {% for bill in bills %}
+            <tr>
+              <td align="left">{{ loop.index }}</td>
+              <td align="left">{{ bill.BillDate | default('—') }}</td>
+              <td align="right">{% set amt = bill.BillAmount | default(0) | float(0) %}{% if amt < 0 %}<font color="#4CAF50"><b>R{{ amt | round(2) }}</b></font>{% elif amt == 0 %}<font color="#999999"><b>R0.00</b></font>{% else %}<font color="#EF5350"><b>R{{ amt | round(2) }}</b></font>{% endif %}</td>
+              <td align="center">{% if bill.DownloadAvailable | default(false) %}<a href="{{ bill.LocalPdfUrl | default(bill.HaPdfUrl) }}" target="_blank" rel="noopener" download>View</a>{% else %}—{% endif %}</td>
+              <td align="center">{% if bill.DownloadAvailable | default(false) and bill.PortalPdfUrl %}<a href="{{ bill.PortalPdfUrl }}" target="_blank" rel="noopener">Open</a>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        card_mod:
+          style:
+            ha-markdown$: |
+              a {
+                color: #ffffff !important;
+                text-decoration: none !important;
+                font-weight: 600;
+              }
+              a:hover {
+                text-decoration: underline !important;
+                color: #ffffff !important;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              table tr {
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+              }
+              table tr:first-child {
+                border-bottom: 2px solid rgba(255,255,255,0.15);
+              }
+              table td {
+                padding: 8px 10px;
+                font-size: 0.9em;
+              }
+              table tr:first-child td {
+                color: rgba(255,255,255,0.6);
+                font-size: 0.85em;
+                font-weight: 600;
+                padding-bottom: 10px;
+              }
+              table tr:hover {
+                background: rgba(255,255,255,0.03);
+              }
+            .: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #2196F3;
+              }
+
+      - type: markdown
+        content: >-
+          ## Latest Bill Details
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% if bills | length > 0 %}
+          {% set b = bills[0] %}
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>Field</b></td>
+              <td align="left"><b>Value</b></td>
+            </tr>
+            <tr>
+              <td align="left">Bill Date</td>
+              <td align="left">{{ b.BillDate | default('—') }}</td>
+            </tr>
+            <tr>
+              <td align="left">Bill Amount</td>
+              <td align="left">{% set amt = b.BillAmount | default(0) | float(0) %}{% if amt < 0 %}<font color="#4CAF50"><b>Credit R{{ amt | round(2) }}</b></font>{% elif amt == 0 %}<font color="#999999"><b>Settled R0.00</b></font>{% else %}<font color="#EF5350"><b>Due R{{ amt | round(2) }}</b></font>{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Download Available</td>
+              <td align="left">{% if b.DownloadAvailable | default(false) %}Yes{% else %}No{% endif %}</td>
+            </tr>
+            {% if b.DownloadAvailable | default(false) %}
+            <tr>
+              <td align="left">View PDF</td>
+              <td align="left"><a href="{{ b.LocalPdfUrl | default(b.HaPdfUrl) }}" target="_blank">View</a></td>
+            </tr>
+            <tr>
+              <td align="left">Download PDF</td>
+              <td align="left"><a href="{{ b.LocalPdfUrl | default(b.HaPdfUrl) }}" target="_blank" rel="noopener">Download</a></td>
+            </tr>
+            {% if b.PortalPdfUrl %}
+            <tr>
+              <td align="left">Portal Link</td>
+              <td align="left"><a href="{{ b.PortalPdfUrl }}" target="_blank">Open</a></td>
+            </tr>
+            {% endif %}
+            {% endif %}
+            </tbody>
+          </table>
+          {% else %}
+          <p><em>No bill data available.</em></p>
+          {% endif %}
+        card_mod:
+          style:
+            ha-markdown$: |
+              a {
+                color: #ffffff !important;
+                text-decoration: none !important;
+                font-weight: 600;
+              }
+              a:hover {
+                text-decoration: underline !important;
+                color: #ffffff !important;
+              }
+              table {
+                width: 100%;
+                border-collapse: collapse;
+              }
+              table tr {
+                border-bottom: 1px solid rgba(255,255,255,0.06);
+              }
+              table tr:first-child {
+                border-bottom: 2px solid rgba(255,255,255,0.15);
+              }
+              table td {
+                padding: 8px 10px;
+                font-size: 0.9em;
+              }
+              table tr:first-child td {
+                color: rgba(255,255,255,0.6);
+                font-size: 0.85em;
+                font-weight: 600;
+                padding-bottom: 10px;
+              }
+              table tr:hover {
+                background: rgba(255,255,255,0.03);
+              }
+            .: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #FF9800;
+              }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Account Info
+            card_mod:
+              style: |
+                ha-card { background: none !important; }
+          - type: glance
+            show_name: true
+            show_icon: true
+            show_state: true
+            columns: 2
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+            entities:
+              - entity: sensor.latest_bill_amount
+                name: Bill Amount
+                icon: mdi:currency-zar
+              - entity: sensor.latest_bill_date
+                name: Bill Date
+                icon: mdi:calendar-month
+
+  - theme: Backend-selected
+    title: Siyakhokha Graphs
+    path: siyakhokha-graphs
+    type: sidebar
+    badges: []
+    cards:
+      - type: custom:mushroom-title-card
+        title: "📊 Billing Analytics"
+        subtitle: Yearly trends and billing history
+
+      - type: entities
+        title: Chart Controls
+        show_header_toggle: false
+        entities:
+          - entity: input_select.siyakhokha_bill_year
+            name: Selected year
+            icon: mdi:calendar-range
+          - entity: sensor.latest_bill_amount
+            name: Data source
+            secondary_info: last-updated
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          ## Year Summary
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set selected = states('input_select.siyakhokha_bill_year') | string %}
+          {% set year_bills = bills | selectattr('BillDate', 'match', '^' ~ selected ~ '-') | list %}
+          {% set amounts = year_bills | map(attribute='BillAmount') | map('float') | list %}
+          {% set total = amounts | sum if amounts | length > 0 else 0 %}
+          {% set avg = (total / (amounts | length)) | round(2) if amounts | length > 0 else 0 %}
+          {% set highest = amounts | max if amounts | length > 0 else 0 %}
+          {% set lowest = amounts | min if amounts | length > 0 else 0 %}
+
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="center"><b>📊 Total</b></td>
+              <td align="center"><b>📈 Average</b></td>
+              <td align="center"><b>🔺 Highest</b></td>
+              <td align="center"><b>🔻 Lowest</b></td>
+            </tr>
+            <tr>
+              <td align="center">{% if total < 0 %}🟢{% elif total == 0 %}⚪{% else %}🔴{% endif %} R{{ total | round(2) }}</td>
+              <td align="center">R{{ avg }}</td>
+              <td align="center">🔴 R{{ highest | round(2) }}</td>
+              <td align="center">{% if lowest < 0 %}🟢{% else %}⚪{% endif %} R{{ lowest | round(2) }}</td>
+            </tr>
+            </tbody>
+          </table>
+
+          <p><em>{{ amounts | length }} bill(s) in {{ selected }}</em></p>
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #FF9800;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+            table td { padding: 10px 8px; font-size: 0.9em; }
+            table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.8em; font-weight: 600; }
+
+      - type: markdown
+        content: >-
+          ## Monthly Bills (Selected Year)
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set selected = states('input_select.siyakhokha_bill_year') | int(0) %}
+          {% set current_year = now().year | int %}
+          {% set end_month = 12 if selected != current_year else (now().month | int - 1) %}
+          {% set months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+          {% set ns = namespace(vals=[]) %}
+          {% for i in range(1, end_month + 1) %}
+            {% set mm = '%02d'|format(i) %}
+            {% set rows = bills | selectattr('BillDate', 'match', '^' ~ selected ~ '-' ~ mm ~ '-') | list %}
+            {% set amt = rows | map(attribute='BillAmount') | map('float') | sum %}
+            {% set ns.vals = ns.vals + [amt] %}
+          {% endfor %}
+
+          {% set max_abs = ns.vals | map('abs') | max if ns.vals|length > 0 else 1 %}
+          {% set max_abs = max_abs if max_abs > 0 else 1 %}
+          {% if ns.vals | length == 0 %}
+            - No billed months available yet for {{ selected }}.
+          {% endif %}
+          {% for idx in range(0, ns.vals | length) %}
+            {% set v = ns.vals[idx] %}
+            {% set blocks = ((v | abs) / max_abs * 15) | round(0) | int %}
+            {% set bar = '🟩' if v < 0 else ('⬜' if v == 0 else '🟥') %}
+            - **{{ months[idx] }}**: {% if v < 0 %}🟢{% elif v == 0 %}⚪{% else %}🔴{% endif %} `R{{ v | round(2) }}` {{ bar * blocks }}
+          {% endfor %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          ## Cumulative Trend (Selected Year)
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set selected = states('input_select.siyakhokha_bill_year') | int(0) %}
+          {% set current_year = now().year | int %}
+          {% set end_month = 12 if selected != current_year else (now().month | int - 1) %}
+          {% set months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] %}
+          {% set ns = namespace(run=0, vals=[]) %}
+          {% for i in range(1, end_month + 1) %}
+            {% set mm = '%02d'|format(i) %}
+            {% set rows = bills | selectattr('BillDate', 'match', '^' ~ selected ~ '-' ~ mm ~ '-') | list %}
+            {% set amt = rows | map(attribute='BillAmount') | map('float') | sum %}
+            {% set ns.run = ns.run + amt %}
+            {% set ns.vals = ns.vals + [ns.run] %}
+          {% endfor %}
+          {% set final = ns.vals[-1] if ns.vals|length > 0 else 0 %}
+          {% set max_cum = ns.vals | map('abs') | max if ns.vals|length > 0 else 1 %}
+          {% set max_cum = max_cum if max_cum > 0 else 1 %}
+
+          {% if ns.vals | length == 0 %}
+            - No billed months available yet for {{ selected }}.
+          {% endif %}
+          {% for idx in range(0, ns.vals | length) %}
+            {% set v = ns.vals[idx] %}
+            {% set blocks = ((v | abs) / max_cum * 12) | round(0) | int %}
+            - **{{ months[idx] }}**: `R{{ v | round(0) | int }}` {{ '▓' * blocks }}{{ '░' * (12 - blocks) }}
+          {% endfor %}
+
+          ---
+
+          **Selected year:** {{ selected }}
+          · **Cumulative total:** {% if final < 0 %}🟢{% elif final == 0 %}⚪{% else %}🔴{% endif %} **R{{ final | round(2) }}**
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          ## 📅 Year-over-Year
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set ns_years = namespace(years=[]) %}
+          {% for b in bills %}
+            {% set y = b.BillDate[:4] if b.BillDate is defined and b.BillDate | length >= 4 else '' %}
+            {% if y != '' and y not in ns_years.years %}{% set ns_years.years = ns_years.years + [y] %}{% endif %}
+          {% endfor %}
+          {% set years = ns_years.years | sort %}
+
+          {% if years | length == 0 %}
+
+          *No data available.*
+
+          {% else %}
+          {% set ns_max = namespace(val=1) %}
+          {% for y in years %}
+            {% set yt = (bills | selectattr('BillDate', 'match', '^' ~ y ~ '-') | map(attribute='BillAmount') | map('float') | sum) | abs %}
+            {% if yt > ns_max.val %}{% set ns_max.val = yt %}{% endif %}
+          {% endfor %}
+
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>Year</b></td>
+              <td align="left"><b>Bills</b></td>
+              <td align="right"><b>Total</b></td>
+              <td align="left"><b>Trend</b></td>
+            </tr>
+            {% for y in years | reverse %}
+            {% set year_total = bills | selectattr('BillDate', 'match', '^' ~ y ~ '-') | map(attribute='BillAmount') | map('float') | sum %}
+            {% set year_count = bills | selectattr('BillDate', 'match', '^' ~ y ~ '-') | list | length %}
+            {% set blocks = ((year_total | abs) / (ns_max.val if ns_max.val > 0 else 1) * 10) | round(0) | int %}
+            {% set is_sel = (y == states('input_select.siyakhokha_bill_year') | string) %}
+            <tr>
+              <td align="left">{% if is_sel %}**👉 {{ y }}**{% else %}{{ y }}{% endif %}</td>
+              <td align="left">{{ year_count }}</td>
+              <td align="right">{% if year_total < 0 %}🟢{% elif year_total == 0 %}⚪{% else %}🔴{% endif %} R{{ year_total | round(0) | int }}</td>
+              <td align="left">{{ '█' * blocks }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #2196F3;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+            table td { padding: 8px 10px; font-size: 0.9em; }
+            table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; }
+            table tr:hover { background: rgba(255,255,255,0.03); }
+
+      - type: markdown
+        content: >-
+          ## Notes
+
+          - Charts are filtered by **Selected year**.
+          - Data comes directly from `sensor.latest_bill_amount` bill attributes.
+          - If values look stale, press **Refresh Bills** on the main Siyakhokha tab.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #00BCD4;
+            }
+
+  - theme: Backend-selected
+    title: Siyakhokha Payments
+    path: siyakhokha-payments
+    type: sidebar
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-title-card
+        title: 💳 Payments
+        subtitle: Payment history, debit orders and batch submission
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Payment History Rows
+            secondary: >-
+              {{ (state_attr('sensor.latest_bill_amount', 'payment_history') or {}).get('data', []) | count }} rows
+            icon: mdi:history
+            color: cyan
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-payment-history-rows'
+          - type: custom:mushroom-template-card
+            primary: Debit Orders Rows
+            secondary: >-
+              {{ (state_attr('sensor.latest_bill_amount', 'debit_orders') or {}).get('data', []) | count }} rows
+            icon: mdi:bank-check
+            color: teal
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-debit-orders-rows'
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-payment-history-rows'
+            name: Payment History Rows
+            icon: mdi:history
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              ## Payment History Data Rows
+
+              {% set ph = state_attr('sensor.latest_bill_amount', 'payment_history') | default({}, true) %}
+              {% set rows = ph.get('data', []) if ph is mapping else [] %}
+              {% if rows | count == 0 %}
+              <p><em>No payment history rows loaded.</em></p>
+              {% else %}
+              <p><em>Showing {{ rows | count }} payment(s).</em></p>
+              <table width="100%" border=0>
+                <tbody>
+                <tr>
+                  <td align="left"><b>#</b></td>
+                  <td align="left"><b>Date</b></td>
+                  <td align="left"><b>Type</b></td>
+                  <td align="right"><b>Amount</b></td>
+                </tr>
+                {% for r in rows[:40] %}
+                {% if r is mapping %}
+                {% set date_raw = r.PaymentDateTime | default('—') | string %}
+                {% set amount_num = r.AmountPaid | default(0) | float(0) %}
+                {% set pay_type = r.PaymentType | default('—') %}
+                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                <tr>
+                  <td align="left">{{ loop.index }}</td>
+                  <td align="left">{{ date_fmt }}</td>
+                  <td align="left">{{ pay_type }}</td>
+                  <td align="right">🟢 R{{ '%.2f' | format(amount_num) }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #00BCD4;
+                }
+                table { width: 100%; border-collapse: collapse; }
+                table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+                table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+                table td { padding: 8px 10px; font-size: 0.9em; }
+                table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; padding-bottom: 10px; }
+                table tr:hover { background: rgba(255,255,255,0.03); }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-debit-orders-rows'
+            name: Debit Orders Rows
+            icon: mdi:bank-check
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              ## Debit Orders Data Rows
+
+              {% set d = state_attr('sensor.latest_bill_amount', 'debit_orders') | default({}, true) %}
+              {% set rows = d.get('data', []) if d is mapping else [] %}
+              {% if rows | count == 0 %}
+              <p><em>No debit order rows loaded.</em></p>
+              {% else %}
+              <p><em>Showing {{ rows | count }} debit order(s).</em></p>
+              <table width="100%" border=0>
+                <tbody>
+                <tr>
+                  <td align="left"><b>#</b></td>
+                  <td align="left"><b>Date</b></td>
+                  <td align="right"><b>Amount</b></td>
+                  <td align="center"><b>Day</b></td>
+                  <td align="left"><b>Status</b></td>
+                  <td align="left"><b>Account</b></td>
+                </tr>
+                {% for r in rows[:40] %}
+                {% if r is mapping %}
+                {% set date_raw = r.StartDateTime | default('—') | string %}
+                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                {% set amount = r.Amount | default(0) | float(0) %}
+                {% set strike = r.StrikeDay | default('—') %}
+                {% set status_obj = r.Status | default({}) %}
+                {% set status_name = status_obj.Name if status_obj is mapping else '—' %}
+                {% set bank_obj = r.BankAccount | default({}) %}
+                {% set hidden_acc = bank_obj.HiddenBankAccountNumber if bank_obj is mapping else '—' %}
+                {% set is_batch = r.IsBatch | default(false) %}
+                <tr>
+                  <td align="left">{{ loop.index }}</td>
+                  <td align="left">{{ date_fmt }}</td>
+                  <td align="right">R{{ '%.2f' | format(amount) }}</td>
+                  <td align="center">{{ strike }}</td>
+                  <td align="left">{% if status_name == 'Success' %}🟢{% elif status_name == 'Processing' %}🟡{% elif status_name == 'Failed' %}🔴{% else %}⚪{% endif %} {{ status_name }}{% if is_batch %} · Batch{% endif %}</td>
+                  <td align="left">{{ hidden_acc }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #009688;
+                }
+                table { width: 100%; border-collapse: collapse; }
+                table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+                table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+                table td { padding: 8px 10px; font-size: 0.9em; }
+                table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; padding-bottom: 10px; }
+                table tr:hover { background: rgba(255,255,255,0.03); }
+
+      - type: markdown
+        content: >-
+          ## Once-off Batch Payment
+
+          Use the helper controls below to set your amount.
+
+          **Minimum amount is R50.00** (bank charge requirement).
+
+          ⚠️ Once submitted, this payment cannot be changed or reversed.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #FF9800;
+            }
+
+      - type: entities
+        title: Batch Payment Controls
+        show_header_toggle: false
+        entities:
+          - entity: input_text.siyakhokha_entry_id
+            name: Siyakhokha Entry ID
+          - entity: input_number.siyakhokha_batch_payment_amount
+            name: Payment Amount (R)
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: custom:mushroom-template-card
+        primary: Submit Batch Payment
+        secondary: >-
+          Account {{ state_attr('sensor.latest_bill_amount', 'account_number') | default('YOUR_ACCOUNT_NUMBER', true) }}
+          · Amount R{{ states('input_number.siyakhokha_batch_payment_amount') | float(50) | round(2) }}
+        icon: mdi:cash-fast
+        color: amber
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.siyakhokha_submit_batch_payment
+          confirmation:
+            text: >-
+              Confirm Once-off Batch Payment. This will submit the selected amount (minimum R50.00)
+              for the configured municipal account, and cannot be undone.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: |
+          ## Single Debit Order
+
+          Simple mode: choose account/bank, enter amount, and submit.
+
+          The integration auto-resolves account IDs from `/DebitOrder` context.
+
+          Rules applied automatically:
+          - Strike day = today
+          - Start date = now
+          - Recurring = false (always)
+
+          Keep **Dry Run** ON while validating.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #9C27B0;
+            }
+
+      - type: entities
+        title: Single Debit Order (Simple)
+        show_header_toggle: false
+        entities:
+          - entity: input_number.siyakhokha_single_amount
+            name: Amount (R)
+          - entity: input_select.siyakhokha_single_bank_account_choice
+            name: Bank Account
+          - entity: input_select.siyakhokha_single_account_choice
+            name: Municipal Account
+          - entity: input_boolean.siyakhokha_single_dry_run
+            name: Dry Run (recommended ON)
+          - entity: input_boolean.siyakhokha_single_show_advanced
+            name: Show Advanced / Raw Overrides
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: custom:mushroom-template-card
+        primary: Submit Single Debit Order
+        secondary: >-
+          {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+          {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+          {% set bank_sel = states('input_select.siyakhokha_single_bank_account_choice') %}
+          {% set acct_sel = states('input_select.siyakhokha_single_account_choice') %}
+          {% set bank_val = bank_sel if bank_sel not in ['unknown', 'unavailable', '', 'Auto (resolved)'] else ('Auto ' ~ r.get('bank_account_id', 'n/a')) %}
+          {% set acct_val = acct_sel if acct_sel not in ['unknown', 'unavailable', '', 'Auto (resolved)'] else ('Auto ' ~ r.get('account_id', 'n/a')) %}
+          Bank {{ bank_val }} ·
+          Account {{ acct_val }} ·
+          R{{ states('input_number.siyakhokha_single_amount') | float(0) | round(2) }} ·
+          Dry run {{ 'ON' if is_state('input_boolean.siyakhokha_single_dry_run', 'on') else 'OFF' }}
+        icon: mdi:bank-transfer
+        color: deep-purple
+        tap_action:
+          action: call-service
+          service: input_button.press
+          target:
+            entity_id: input_button.siyakhokha_submit_single_debit_order
+          confirmation:
+            text: >-
+              Confirm single debit-order action from dashboard values.
+              Ensure Dry Run is ON for test-only mode.
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+          {% set banks = ctx.get('bank_accounts', []) if ctx is mapping else [] %}
+          {% set accts = ctx.get('municipal_accounts', []) if ctx is mapping else [] %}
+          {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+          {% set bank_sel = states('input_select.siyakhokha_single_bank_account_choice') %}
+          {% set acct_sel = states('input_select.siyakhokha_single_account_choice') %}
+
+          ## Resolved Context (Read-only)
+
+          - Selected bank option: `{{ bank_sel }}`
+          - Selected municipal option: `{{ acct_sel }}`
+          - Resolved bank id: `{{ r.get('bank_account_id', 'n/a') }}`
+          - Resolved account id: `{{ r.get('account_id', 'n/a') }}`
+          - Auto strike day: `{{ now().day }}`
+          - Auto start date: `{{ now().strftime('%Y/%m/%d %H:%M:%S') }}`
+          - Recurring forced: `false`
+          - Bank options discovered: `{{ banks | count }}`
+          - Municipal account options discovered: `{{ accts | count }}`
+
+          {% if banks | count > 0 %}
+          **Bank options**
+          {% for b in banks %}
+          - {% if b.selected | default(false) %}👉 {% endif %}`{{ b.id | default('n/a') }}` · {{ b.label | default('—') }}
+          {% endfor %}
+          {% endif %}
+
+          {% if accts | count > 0 %}
+          **Municipal account options**
+          {% for a in accts %}
+          - {% if a.selected | default(false) %}👉 {% endif %}`{{ a.id | default('n/a') }}` · {{ a.label | default('—') }}
+          {% endfor %}
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #7E57C2;
+            }
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Bank Details Payload
+            secondary: Selected bank option as raw JSON
+            icon: mdi:bank-outline
+            color: indigo
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-bank-details-payload'
+          - type: custom:mushroom-template-card
+            primary: Full Context Payload
+            secondary: Raw single_debit_context JSON
+            icon: mdi:code-json
+            color: blue
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-single-debit-context-payload'
+
+      - type: custom:mushroom-template-card
+        primary: Effective Submission Payload
+        secondary: Final payload HA will submit
+        icon: mdi:send-check-outline
+        color: green
+        tap_action:
+          action: navigate
+          navigation_path: '#siyakhokha-effective-submit-payload'
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-bank-details-payload'
+            name: Selected Bank Details Payload
+            icon: mdi:bank-outline
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+              {% set banks = ctx.get('bank_accounts', []) if ctx is mapping else [] %}
+              {% set selected_option = states('input_select.siyakhokha_single_bank_account_choice') | string %}
+              {% set selected_id = selected_option.split(' - ')[0] | trim %}
+              {% set ns = namespace(bank=none) %}
+
+              {% if selected_id is match('^[0-9]+$') %}
+                {% for b in banks %}
+                  {% if b is mapping and (b.id | string) == selected_id %}
+                    {% set ns.bank = b %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              {% if ns.bank is none %}
+                {% for b in banks %}
+                  {% if b is mapping and b.selected | default(false) %}
+                    {% set ns.bank = b %}
+                  {% endif %}
+                {% endfor %}
+              {% endif %}
+
+              ## Selected Bank Details (Raw)
+
+              {% if ns.bank is mapping %}
+              <pre>{{ ns.bank | to_json(pretty_print=True) }}</pre>
+              {% else %}
+              <p><em>No selected bank payload available yet.</em></p>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #3F51B5;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.86em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-single-debit-context-payload'
+            name: Single Debit Context Payload
+            icon: mdi:code-json
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+
+              ## `single_debit_context` (Raw)
+
+              {% if ctx is mapping and ctx | count > 0 %}
+              <pre>{{ ctx | to_json(pretty_print=True) }}</pre>
+              {% else %}
+              <p><em>No single debit context payload available yet.</em></p>
+              {% endif %}
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #2196F3;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.82em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-effective-submit-payload'
+            name: Effective Submission Payload
+            icon: mdi:send-check-outline
+            show_state: false
+            bg_color: '#102027'
+            bg_opacity: 10
+            bg_blur: 14
+          - type: markdown
+            content: >-
+              {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
+              {% set r = ctx.get('resolved', {}) if ctx is mapping else {} %}
+              {% set bank_override = states('input_text.siyakhokha_single_bank_account_override') | trim %}
+              {% set account_override = states('input_text.siyakhokha_single_account_override') | trim %}
+              {% set bank_selected = states('input_select.siyakhokha_single_bank_account_choice') | trim %}
+              {% set account_selected = states('input_select.siyakhokha_single_account_choice') | trim %}
+              {% set bank_selected_id = bank_selected.split(' - ')[0] | trim %}
+              {% set account_selected_id = account_selected.split(' - ')[0] | trim %}
+              {% set entry_id = states('input_text.siyakhokha_entry_id') | trim %}
+              {% set amount = states('input_number.siyakhokha_single_amount') | float(0) %}
+              {% set dry_run = is_state('input_boolean.siyakhokha_single_dry_run', 'on') %}
+
+              {% set bank_final = 0 %}
+              {% set account_final = 0 %}
+              {% set bank_source = 'auto_resolve' %}
+              {% set account_source = 'auto_resolve' %}
+
+              {% if bank_override is match('^[0-9]+$') and (bank_override | int(0)) > 0 %}
+                {% set bank_final = bank_override | int(0) %}
+                {% set bank_source = 'override' %}
+              {% elif bank_selected_id is match('^[0-9]+$') and (bank_selected_id | int(0)) > 0 %}
+                {% set bank_final = bank_selected_id | int(0) %}
+                {% set bank_source = 'dropdown' %}
+              {% endif %}
+
+              {% if account_override is match('^[0-9]+$') and (account_override | int(0)) > 0 %}
+                {% set account_final = account_override | int(0) %}
+                {% set account_source = 'override' %}
+              {% elif account_selected_id is match('^[0-9]+$') and (account_selected_id | int(0)) > 0 %}
+                {% set account_final = account_selected_id | int(0) %}
+                {% set account_source = 'dropdown' %}
+              {% endif %}
+
+              {% set payload = {
+                'entry_id': entry_id,
+                'amount': amount,
+                'confirm': True,
+                'dry_run': dry_run,
+                'effective': {
+                  'bank_account_id': bank_final if bank_final > 0 else r.get('bank_account_id', none),
+                  'account_id': account_final if account_final > 0 else r.get('account_id', none),
+                  'bank_id_source': bank_source,
+                  'account_id_source': account_source
+                },
+                'service_payload': {
+                  'entry_id': entry_id,
+                  'amount': amount,
+                  'confirm': True,
+                  'dry_run': dry_run,
+                  'bank_account_id': bank_final if bank_final > 0 else none,
+                  'account_id': account_final if account_final > 0 else none
+                }
+              } %}
+
+              ## Effective Submit Payload (Raw)
+
+              <pre>{{ payload | to_json(pretty_print=True) }}</pre>
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                  border-left: 3px solid #4CAF50;
+                }
+                pre {
+                  margin: 0;
+                  white-space: pre-wrap;
+                  overflow-wrap: anywhere;
+                  word-break: break-word;
+                  font-size: 0.82em;
+                  line-height: 1.35;
+                  max-height: 52vh;
+                  overflow: auto;
+                }
+
+      - type: conditional
+        conditions:
+          - entity: input_boolean.siyakhokha_single_show_advanced
+            state: 'on'
+        card:
+          type: entities
+          title: Advanced Overrides (Power Users)
+          show_header_toggle: false
+          entities:
+            - entity: input_text.siyakhokha_single_bank_account_override
+              name: Override Bank Account ID
+            - entity: input_text.siyakhokha_single_account_override
+              name: Override Municipal Account ID
+          card_mod:
+            style: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #9C27B0;
+              }
+
+      - type: markdown
+        content: >-
+          ## Latest Batch Orders (Top 10)
+
+          {% set bo = (state_attr('sensor.latest_bill_amount', 'batch_orders') or {}) %}
+          {% set rows = bo.get('data', []) if bo is mapping else [] %}
+          {% if rows | count == 0 %}
+          <p><em>No batch orders loaded.</em></p>
+          {% else %}
+          <p><em>Showing {{ [rows | count, 10] | min }} of {{ rows | count }} batch order(s).</em></p>
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>#</b></td>
+              <td align="left"><b>Date</b></td>
+              <td align="left"><b>Batch Ref</b></td>
+              <td align="left"><b>Status</b></td>
+              <td align="right"><b>Amount</b></td>
+            </tr>
+            {% for r in rows[:10] %}
+            {% if r is mapping %}
+            {% set d = r.DebitOrder if r.DebitOrder is mapping else {} %}
+            {% set date_raw = d.StartDateTime | default(r.CreatedDateTime | default('—')) | string %}
+            {% set amount_num = d.Amount | default(0) | float(0) %}
+            {% set batch_ref = r.BatchReference | default(r.BatchNumber | default('—')) %}
+            {% set s = r.Status if r.Status is mapping else {} %}
+            {% set status_name = s.Name | default('—') %}
+            {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+            {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+            <tr>
+              <td align="left">{{ loop.index }}</td>
+              <td align="left">{{ date_fmt }}</td>
+              <td align="left">{{ batch_ref }}</td>
+              <td align="left">{% if status_name == 'Success' %}🟢{% elif status_name in ['Processing', 'Pending'] %}🟡{% elif status_name == 'Failed' %}🔴{% else %}⚪{% endif %} {{ status_name }}</td>
+              <td align="right">R{{ '%.2f' | format(amount_num) }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #2196F3;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+            table td { padding: 8px 10px; font-size: 0.9em; }
+            table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; padding-bottom: 10px; }
+            table tr:hover { background: rgba(255,255,255,0.03); }
+
+  - theme: Backend-selected
+    title: Siyakhokha Tariffs
+    path: siyakhokha-tariffs
+    type: sidebar
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-title-card
+        title: ⚡ Tariffs
+        subtitle: Official Ekurhuleni electricity tariffs (A/B/C)
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Refresh Tariffs
+            secondary: Check latest public schedule
+            icon: mdi:refresh
+            entity: button.refresh_tariffs
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.refresh_tariffs
+              confirmation:
+                text: Fetch and parse latest public electricity tariff schedule?
+            color: cyan
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+          - type: custom:mushroom-template-card
+            primary: Tariff Status
+            secondary: >-
+              {% set last_raw = states('sensor.tariff_last_refresh') %}
+              {% set last_human = as_local(as_datetime(last_raw)).strftime('%d %B %Y %H:%M:%S') if last_raw not in ['unknown', 'unavailable', 'none', 'None', ''] else 'never' %}
+              {{ states('sensor.tariff_status') | default('unknown', true) }}
+              · Last: {{ last_human }}
+            icon: mdi:transmission-tower
+            color: >-
+              {% set st = states('sensor.tariff_status') %}
+              {% if st == 'ok' %}green{% elif st == 'error' %}red{% else %}amber{% endif %}
+            tap_action:
+              action: more-info
+            entity: sensor.tariff_status
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set raw = states('sensor.deye_summary_month_grid_import_buy') %}
+          {% if raw in ['unknown', 'unavailable', 'none', 'None', ''] %}
+            Grid import this month is unavailable
+          {% else %}
+            Grid import this month: {{ '%.1f' | format(raw | float(0)) }} kWh
+          {% endif %}
+        secondary: >-
+          {% set raw = states('sensor.deye_summary_month_grid_import_buy') %}
+          {% set kwh = raw | float(0) %}
+          {% if raw in ['unknown', 'unavailable', 'none', 'None', ''] %}
+            Waiting for Deye month import value (`sensor.deye_summary_month_grid_import_buy`).
+          {% elif kwh <= 50 %}
+            Active block: A.1.2 (0 to 50 kWh/month) · Residential A2 Non-Indigent scale.
+          {% elif kwh <= 600 %}
+            Active block: A.2.2 (>50 to <=600 kWh/month) · Residential A2 Non-Indigent scale.
+          {% elif kwh <= 700 %}
+            Active block: A.3.2 (>600 to <=700 kWh/month) · Residential A2 Non-Indigent scale.
+          {% else %}
+            Active block: A.4.2 (>700 kWh/month) · Residential A2 Non-Indigent scale.
+          {% endif %}
+        icon: mdi:lightning-bolt-circle
+        entity: sensor.deye_summary_month_grid_import_buy
+        multiline_secondary: true
+        fill_container: true
+        tap_action:
+          action: more-info
+        color: >-
+          {% set raw = states('sensor.deye_summary_month_grid_import_buy') %}
+          {% if raw in ['unknown', 'unavailable', 'none', 'None', ''] %}amber
+          {% else %}
+            {% set kwh = raw | float(0) %}
+            {% if kwh <= 50 %}green
+            {% elif kwh <= 600 %}cyan
+            {% elif kwh <= 700 %}blue
+            {% else %}indigo
+            {% endif %}
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #42A5F5;
+            }
+
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set m = states('sensor.prepaid_purchased_kwh_month_calendar') %}
+          {% if m in ['unknown', 'unavailable', 'none', 'None', ''] %}
+            Prepaid purchased this month: unavailable
+          {% else %}
+            Prepaid purchased this month: {{ '%.2f' | format(m | float(0)) }} kWh
+          {% endif %}
+        secondary: >-
+          {%- set m_raw = states('sensor.prepaid_purchased_kwh_month_calendar') -%}
+          {%- set m = m_raw | float(0) -%}
+          {%- set left_raw = states('sensor.prepaid_units_to_next_tier_month_calendar') -%}
+          {%- set left = left_raw | float(0) -%}
+          {%- set rows = state_attr('sensor.latest_bill_amount', 'tariffs') | default([], true) -%}
+          {%- set rates = namespace(a12=none, a22=none, a32=none, a42=none) -%}
+          {%- for r in rows -%}
+            {%- if r is mapping and (r.section | default('') == 'Residential A2 Non-Indigent') and (r.unit | default('') == 'R/kWh') -%}
+              {%- if r.charge_or_block | default('') == 'A.1.2 Block' -%}{%- set rates.a12 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.2.2 Block' -%}{%- set rates.a22 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.3.2 Block' -%}{%- set rates.a32 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.4.2 Block' -%}{%- set rates.a42 = r.incl_vat | float(0) -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- if m_raw in ['unknown', 'unavailable', 'none', 'None', ''] -%}
+            Waiting for monthly prepaid purchase tracker.
+          {%- elif m > 700 -%}
+            Current prepaid purchase tier: A.4.2 Block · Units before next tier: 0.00 kWh. You are already in A.4.2 (max tier) for this month.
+          {%- else -%}
+            {%- if m <= 50 -%}{%- set boundary = 50 -%}{%- elif m <= 600 -%}{%- set boundary = 600 -%}{%- else -%}{%- set boundary = 700 -%}{%- endif -%}
+            Current prepaid purchase tier: {{ states('sensor.prepaid_purchase_tier_month_calendar') }} · Units before next tier: {{ '%.2f' | format(left) }} kWh
+            {%- if rates.a12 is not none and rates.a22 is not none and rates.a32 is not none and rates.a42 is not none -%}
+              {%- if m <= 50 -%}
+                {%- set active_rate = rates.a12 -%}
+                {%- set boundary_cost = left * rates.a12 -%}
+              {%- elif m <= 600 -%}
+                {%- set active_rate = rates.a22 -%}
+                {%- set boundary_cost = left * rates.a22 -%}
+              {%- else -%}
+                {%- set active_rate = rates.a32 -%}
+                {%- set boundary_cost = left * rates.a32 -%}
+              {%- endif -%}
+              (Current-tier boundary cap value: R{{ '%.2f' | format(boundary * active_rate) }} incl VAT for {{ boundary }} kWh. Remaining to that boundary from now: {{ '%.2f' | format(left) }} kWh, estimated R{{ '%.2f' | format(boundary_cost) }} incl VAT.)
+              Incl VAT rates: A.1.2 R{{ '%.4f' | format(rates.a12) }}/kWh · A.2.2 R{{ '%.4f' | format(rates.a22) }}/kWh · A.3.2 R{{ '%.4f' | format(rates.a32) }}/kWh · A.4.2 R{{ '%.4f' | format(rates.a42) }}/kWh.
+            {%- else -%}
+              Buying exactly {{ '%.2f' | format(left) }} kWh will bring you to the top of current tier boundary ({{ boundary }} kWh).
+            {%- endif -%}
+          {%- endif -%}
+        icon: mdi:counter
+        layout: vertical
+        multiline_secondary: true
+        fill_container: true
+        tap_action:
+          action: more-info
+        entity: sensor.prepaid_purchased_kwh_month_calendar
+        color: >-
+          {% set m = states('sensor.prepaid_purchased_kwh_month_calendar') | float(0) %}
+          {% if m <= 50 %}green
+          {% elif m <= 600 %}cyan
+          {% elif m <= 700 %}blue
+          {% else %}indigo
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: custom:mushroom-chips-card
+        alignment: end
+        chips:
+          - type: template
+            icon: mdi:restore-alert
+            icon_color: red
+            content: Reset tracking (test)
+            tap_action:
+              action: call-service
+              service: input_button.press
+              target:
+                entity_id: input_button.prepaid_purchase_reset_all
+              confirmation:
+                text: Reset all prepaid purchase tracking values to zero?
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.20) !important;
+              border: 1px solid rgba(255,255,255,0.04);
+              margin-top: -6px;
+              margin-bottom: 6px;
+            }
+
+      - type: entities
+        entities:
+          - entity: input_number.prepaid_purchase_kwh
+            name: Enter prepaid purchase (kWh)
+            icon: mdi:cash-plus
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: entities
+        title: Prepaid Cost Estimator
+        entities:
+          - entity: input_select.prepaid_estimate_start_tier
+            name: Start tier
+          - entity: input_number.prepaid_estimate_units_kwh
+            name: Units to buy (kWh)
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: custom:mushroom-template-card
+        primary: Prepaid estimate result
+        secondary: >-
+          {%- set rows = state_attr('sensor.latest_bill_amount', 'tariffs') | default([], true) -%}
+          {%- set rates = namespace(a12=none, a22=none, a32=none, a42=none) -%}
+          {%- for r in rows -%}
+            {%- if r is mapping and (r.section | default('') == 'Residential A2 Non-Indigent') and (r.unit | default('') == 'R/kWh') -%}
+              {%- if r.charge_or_block | default('') == 'A.1.2 Block' -%}{%- set rates.a12 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.2.2 Block' -%}{%- set rates.a22 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.3.2 Block' -%}{%- set rates.a32 = r.incl_vat | float(0) -%}
+              {%- elif r.charge_or_block | default('') == 'A.4.2 Block' -%}{%- set rates.a42 = r.incl_vat | float(0) -%}
+              {%- endif -%}
+            {%- endif -%}
+          {%- endfor -%}
+          {%- set mode = states('input_select.prepaid_estimate_start_tier') -%}
+          {%- set units = states('input_number.prepaid_estimate_units_kwh') | float(0) -%}
+          {%- set current_m = states('sensor.prepaid_purchased_kwh_month_calendar') | float(0) -%}
+          {%- if mode == 'Current month position' -%}
+            {%- set base = current_m -%}
+          {%- elif mode == 'A.1.2 Block' -%}
+            {%- set base = 0 -%}
+          {%- elif mode == 'A.2.2 Block' -%}
+            {%- set base = 50 -%}
+          {%- elif mode == 'A.3.2 Block' -%}
+            {%- set base = 600 -%}
+          {%- else -%}
+            {%- set base = 700 -%}
+          {%- endif -%}
+          {%- if rates.a12 is none or rates.a22 is none or rates.a32 is none or rates.a42 is none -%}
+            Tariff rates unavailable. Refresh tariffs first.
+          {%- else -%}
+            {%- set ns = namespace(rem=units, pos=base, total=0, q12=0, q22=0, q32=0, q42=0) -%}
+            {%- if ns.rem > 0 and ns.pos < 50 -%}
+              {%- set q = [ns.rem, 50 - ns.pos] | min -%}
+              {%- set ns.q12 = q -%}
+              {%- set ns.total = ns.total + (q * rates.a12) -%}
+              {%- set ns.pos = ns.pos + q -%}
+              {%- set ns.rem = ns.rem - q -%}
+            {%- endif -%}
+            {%- if ns.rem > 0 and ns.pos < 600 -%}
+              {%- set q = [ns.rem, 600 - ns.pos] | min -%}
+              {%- set ns.q22 = q -%}
+              {%- set ns.total = ns.total + (q * rates.a22) -%}
+              {%- set ns.pos = ns.pos + q -%}
+              {%- set ns.rem = ns.rem - q -%}
+            {%- endif -%}
+            {%- if ns.rem > 0 and ns.pos < 700 -%}
+              {%- set q = [ns.rem, 700 - ns.pos] | min -%}
+              {%- set ns.q32 = q -%}
+              {%- set ns.total = ns.total + (q * rates.a32) -%}
+              {%- set ns.pos = ns.pos + q -%}
+              {%- set ns.rem = ns.rem - q -%}
+            {%- endif -%}
+            {%- if ns.rem > 0 -%}
+              {%- set ns.q42 = ns.rem -%}
+              {%- set ns.total = ns.total + (ns.rem * rates.a42) -%}
+              {%- set ns.pos = ns.pos + ns.rem -%}
+              {%- set ns.rem = 0 -%}
+            {%- endif -%}
+            Estimated cost: R{{ '%.2f' | format(ns.total) }} incl VAT for {{ '%.2f' | format(units) }} kWh. Estimated month total after purchase: {{ '%.2f' | format(base + units) }} kWh. Breakdown: A.1.2 {{ '%.2f' | format(ns.q12) }} kWh · A.2.2 {{ '%.2f' | format(ns.q22) }} kWh · A.3.2 {{ '%.2f' | format(ns.q32) }} kWh · A.4.2 {{ '%.2f' | format(ns.q42) }} kWh.
+          {%- endif -%}
+        icon: mdi:calculator-variant
+        multiline_secondary: true
+        fill_container: true
+        tap_action:
+          action: none
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          <em>Type the exact units you bought (e.g. 100.36). The tracker automation adds it to lifetime/month totals, then resets this field to 0.</em>
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              margin-top: -8px;
+            }
+
+      - type: markdown
+        content: |
+          ## Tariff Tables
+
+          {% set rows = state_attr('sensor.latest_bill_amount', 'tariffs') | default([], true) %}
+          {% set src = state_attr('sensor.latest_bill_amount', 'tariff_source') | default({}, true) %}
+          {% set schedule = src.get('schedule', {}) if src is mapping else {} %}
+          {% set month_raw = states('sensor.deye_summary_month_grid_import_buy') %}
+          {% set month_kwh = month_raw | float(0) %}
+          {% set block = namespace(active_a2='') %}
+          {% if month_raw not in ['unknown', 'unavailable', 'none', 'None', ''] %}
+          {% if month_kwh <= 50 %}
+          {% set block.active_a2 = 'A.1.2 Block' %}
+          {% elif month_kwh <= 600 %}
+          {% set block.active_a2 = 'A.2.2 Block' %}
+          {% elif month_kwh <= 700 %}
+          {% set block.active_a2 = 'A.3.2 Block' %}
+          {% else %}
+          {% set block.active_a2 = 'A.4.2 Block' %}
+          {% endif %}
+          {% endif %}
+          {% set ns = namespace(a=[], b=[], c=[]) %}
+          {% for r in rows %}
+          {% if r is mapping %}
+          {% set t = r.tariff | default('') | string %}
+          {% if t.startswith('A') %}
+          {% set ns.a = ns.a + [r] %}
+          {% elif t == 'B' %}
+          {% set ns.b = ns.b + [r] %}
+          {% elif t == 'C' %}
+          {% set ns.c = ns.c + [r] %}
+          {% endif %}
+          {% endif %}
+          {% endfor %}
+
+          {% if rows | count == 0 %}
+          <p><em>No tariff rows loaded yet. Press Refresh Tariffs.</em></p>
+          {% else %}
+          <p><em>{{ rows | count }} row(s) parsed · Source: {{ schedule.get('title', 'n/a') }}</em></p>
+
+          <details open>
+          <summary><b>Tariff A</b> — Residential + Small Business ({{ ns.a | count }} row(s))</summary>
+          {% if block.active_a2 %}
+          <p><em>Blue text marks your current Residential A2 active block (from month grid import).</em></p>
+          {% endif %}
+          <div class="tariff-scroll">
+          <table class="tariff-table" width="100%" border=0>
+          <tbody>
+          <tr>
+          <td align="left"><b>Section</b></td>
+          <td align="left"><b>Charge / Block</b></td>
+          <td align="left"><b>Range</b></td>
+          <td align="left"><b>Unit</b></td>
+          <td align="right"><b>Excl VAT</b></td>
+          <td align="right"><b>Incl VAT</b></td>
+          </tr>
+          {% for r in ns.a %}
+          {% set is_active_a2 = block.active_a2 and (r.section | default('') == 'Residential A2 Non-Indigent') and (r.charge_or_block | default('') == block.active_a2) and (r.unit | default('') == 'R/kWh') %}
+          <tr>
+          <td align="left">{% if is_active_a2 %}<font color="#64B5F6"><b>&#9656;&nbsp;{{ r.section | default('—') }}</b></font>{% else %}{{ r.section | default('—') }}{% endif %}</td>
+          <td align="left">{% if is_active_a2 %}<font color="#64B5F6"><b>{{ r.charge_or_block | default('—') }}</b></font>{% else %}{{ r.charge_or_block | default('—') }}{% endif %}</td>
+          <td align="left">{% if is_active_a2 %}<font color="#64B5F6"><b>{{ r.usage_range | default('—') }}</b></font>{% else %}{{ r.usage_range | default('—') }}{% endif %}</td>
+          <td align="left">{% if is_active_a2 %}<font color="#64B5F6"><b>{{ r.unit | default('—') }}</b></font>{% else %}{{ r.unit | default('—') }}{% endif %}</td>
+          <td align="right">{% if is_active_a2 %}<font color="#64B5F6"><b>{{ '%.4f' | format(r.excl_vat | float(0)) }}</b></font>{% else %}{{ '%.4f' | format(r.excl_vat | float(0)) }}{% endif %}</td>
+          <td align="right">{% if is_active_a2 %}<font color="#64B5F6"><b>{{ '%.4f' | format(r.incl_vat | float(0)) }}</b></font>{% else %}{{ '%.4f' | format(r.incl_vat | float(0)) }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+          </table>
+          </div>
+          </details>
+
+          <details>
+          <summary><b>Tariff B</b> — Residential ({{ ns.b | count }} row(s))</summary>
+          <div class="tariff-scroll">
+          <table class="tariff-table" width="100%" border=0>
+          <tbody>
+          <tr>
+          <td align="left"><b>Section</b></td>
+          <td align="left"><b>Charge / Block</b></td>
+          <td align="left"><b>Range</b></td>
+          <td align="left"><b>Unit</b></td>
+          <td align="right"><b>Excl VAT</b></td>
+          <td align="right"><b>Incl VAT</b></td>
+          </tr>
+          {% for r in ns.b %}
+          <tr>
+          <td align="left">{{ r.section | default('—') }}</td>
+          <td align="left">{{ r.charge_or_block | default('—') }}</td>
+          <td align="left">{{ r.usage_range | default('—') }}</td>
+          <td align="left">{{ r.unit | default('—') }}</td>
+          <td align="right">{{ '%.4f' | format(r.excl_vat | float(0)) }}</td>
+          <td align="right">{{ '%.4f' | format(r.incl_vat | float(0)) }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+          </table>
+          </div>
+          </details>
+
+          <details>
+          <summary><b>Tariff C</b> — Existing Customers ({{ ns.c | count }} row(s))</summary>
+          <div class="tariff-scroll">
+          <table class="tariff-table" width="100%" border=0>
+          <tbody>
+          <tr>
+          <td align="left"><b>Section</b></td>
+          <td align="left"><b>Charge / Block</b></td>
+          <td align="left"><b>Range</b></td>
+          <td align="left"><b>Unit</b></td>
+          <td align="right"><b>Excl VAT</b></td>
+          <td align="right"><b>Incl VAT</b></td>
+          </tr>
+          {% for r in ns.c %}
+          <tr>
+          <td align="left">{{ r.section | default('—') }}</td>
+          <td align="left">{{ r.charge_or_block | default('—') }}</td>
+          <td align="left">{{ r.usage_range | default('—') }}</td>
+          <td align="left">{{ r.unit | default('—') }}</td>
+          <td align="right">{{ '%.4f' | format(r.excl_vat | float(0)) }}</td>
+          <td align="right">{{ '%.4f' | format(r.incl_vat | float(0)) }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+          </table>
+          </div>
+          </details>
+          {% endif %}
+        card_mod:
+          style:
+            ha-markdown$: |
+              details {
+                margin: 10px 0;
+                padding: 6px 8px;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.02);
+              }
+              details[open] {
+                background: rgba(255,255,255,0.035);
+              }
+              summary {
+                cursor: pointer;
+                color: rgba(255,255,255,0.92);
+                font-size: 0.95em;
+                font-weight: 600;
+                padding: 2px 0;
+              }
+              .tariff-scroll {
+                overflow-x: auto;
+                margin-top: 8px;
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.08);
+                background: rgba(3,10,24,0.45);
+              }
+              .tariff-table {
+                width: 100%;
+                min-width: 980px;
+                border-collapse: collapse;
+                table-layout: fixed;
+              }
+              .tariff-table tr { border-bottom: 1px solid rgba(255,255,255,0.08); }
+              .tariff-table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.2); }
+              .tariff-table tr:nth-child(even):not(:first-child) { background: rgba(255,255,255,0.015); }
+              .tariff-table td { padding: 9px 10px; font-size: 0.9em; vertical-align: top; }
+              .tariff-table tr:first-child td {
+                color: rgba(255,255,255,0.72);
+                font-size: 0.83em;
+                font-weight: 700;
+                letter-spacing: 0.01em;
+                text-transform: uppercase;
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background: rgba(16,24,41,0.96);
+              }
+              .tariff-table td:nth-child(1) { width: 29%; }
+              .tariff-table td:nth-child(2) { width: 26%; }
+              .tariff-table td:nth-child(3) { width: 16%; }
+              .tariff-table td:nth-child(4) { width: 9%; }
+              .tariff-table td:nth-child(5),
+              .tariff-table td:nth-child(6) {
+                width: 10%;
+                font-variant-numeric: tabular-nums;
+                font-family: "JetBrains Mono", "Fira Code", monospace;
+              }
+              .tariff-table tr:hover { background: rgba(255,255,255,0.04); }
+            .: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #00BCD4;
+              }
+
+      - type: markdown
+        content: |
+          ## Plain-English Glossary
+
+          <details>
+          <summary><b>Residential A1 Indigent</b></summary>
+          <p>
+          This is a <b>support tariff</b> for households that are officially registered as low-income with the municipality.
+          It usually gives better pricing at lower usage levels.
+          </p>
+          </details>
+
+          <details>
+          <summary><b>Residential A2 Non-Indigent</b></summary>
+          <p>
+          This is the <b>standard household tariff</b> for customers who are not on the municipality indigent register.
+          Most households are typically billed on this type unless approved for indigent support.
+          </p>
+          </details>
+
+          <details>
+          <summary><b>Tariff Blocks (0-50, 50-600, etc.)</b></summary>
+          <p>
+          Electricity is charged in <b>steps</b> (called blocks), but how the step is determined
+          depends on account type.
+          </p>
+          <p>
+          <b>Postpaid:</b> blocks are generally applied from metered <b>consumption</b> in the billing period.<br>
+          <b>Prepaid:</b> blocks are generally applied from cumulative <b>units purchased</b> in the calendar month
+          (vending month), not only what has already been physically consumed.
+          </p>
+          </details>
+
+          <details>
+          <summary><b>Excl VAT vs Incl VAT</b></summary>
+          <p>
+          <b>Excl VAT</b> is the base tariff before tax. <b>Incl VAT</b> is what you actually pay after VAT is added.
+          </p>
+          </details>
+
+          <details>
+          <summary><b>Why the tariff can reset on the 1st</b></summary>
+          <p>
+          Block-based municipal tariffs are usually measured per calendar month.
+          On day 1 of a new month, block tracking starts again from zero for that month.
+          For prepaid customers this is typically tied to monthly units purchased.
+          </p>
+          </details>
+
+          ---
+
+          <b>Read the full official documents</b>
+
+          {% set src = state_attr('sensor.latest_bill_amount', 'tariff_source') | default({}, true) %}
+          {% set schedule = src.get('schedule', {}) if src is mapping else {} %}
+          {% set schedule_url = schedule.get('url', '') %}
+
+          {% if schedule_url %}
+          - Latest Schedule detected by integration: <a href="{{ schedule_url }}" target="_blank" rel="noopener">Open latest Schedule 2 PDF</a>
+          {% endif %}
+          - Ekurhuleni document feed: <a href="https://www.ekurhuleni.gov.za/wp-json/wp/v2/dlp_document" target="_blank" rel="noopener">Open public document API</a>
+          - Electricity tariff policy (Annexure E16): <a href="https://www.ekurhuleni.gov.za/wp-content/uploads/2025/07/Annexure-E16-Electricity-Tariff-Policy.pdf" target="_blank" rel="noopener">Open policy PDF</a>
+        card_mod:
+          style:
+            ha-markdown$: |
+              details {
+                margin: 8px 0;
+                padding: 6px 8px;
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 10px;
+                background: rgba(255,255,255,0.02);
+              }
+              summary {
+                cursor: pointer;
+                color: rgba(255,255,255,0.92);
+                font-size: 0.95em;
+                font-weight: 600;
+              }
+              p {
+                margin: 8px 0 2px 0;
+                color: rgba(255,255,255,0.84);
+                line-height: 1.45;
+              }
+              a {
+                color: #8fd3ff !important;
+                text-decoration: none !important;
+                font-weight: 600;
+              }
+              a:hover {
+                text-decoration: underline !important;
+              }
+            .: |
+              ha-card {
+                background: rgba(0,0,0,0.35) !important;
+                backdrop-filter: blur(8px);
+                border: 1px solid rgba(255,255,255,0.06);
+                border-left: 3px solid #42A5F5;
+              }
+
+  - theme: Backend-selected
+    title: Debug Siyakhokha
+    path: siyakhokha-debug
+    type: sidebar
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-title-card
+        title: 🛠️ Debug Siyakhokha
+        subtitle: Integration diagnostics and latest submit response
+
+      - type: entities
+        title: Submit Diagnostics
+        show_header_toggle: false
+        entities:
+          - entity: sensor.last_batch_submit_status
+            name: Last batch submit status
+          - entity: sensor.latest_bill_amount
+            name: Bills source sensor
+            secondary_info: last-updated
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+
+      - type: markdown
+        content: >-
+          ## Last Batch Submit Response
+
+          {% set d = state_attr('sensor.last_batch_submit_status', 'last_batch_submit_response') | default({}, true) %}
+          {% if d %}
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>Field</b></td>
+              <td align="left"><b>Value</b></td>
+            </tr>
+            <tr>
+              <td align="left">Status</td>
+              <td align="left">{% set s = d.status | default('unknown') %}{% if s == 'submitted' %}🟢{% elif s == 'failed' %}🔴{% else %}⚪{% endif %} {{ s }}</td>
+            </tr>
+            <tr>
+              <td align="left">Submitted at</td>
+              <td align="left">{{ d.submitted_at | default('n/a') }}</td>
+            </tr>
+            <tr>
+              <td align="left">Account(s)</td>
+              <td align="left">{% if d.request is mapping %}{% if d.request.account_numbers is defined %}{{ d.request.account_numbers | default(['—']) | join(', ') }}{% elif d.request.account_id is defined %}{{ d.request.account_id }}{% else %}—{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Amount(s)</td>
+              <td align="left">{% if d.request is mapping %}{% if d.request.amounts is defined and (d.request.amounts | count > 0) %}{% for a in d.request.amounts %}R{{ '%.2f' | format(a | float(0)) }}{% if not loop.last %}, {% endif %}{% endfor %}{% elif d.request.amount is defined %}R{{ '%.2f' | format(d.request.amount | float(0)) }}{% else %}—{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Mode</td>
+              <td align="left">{% if d.request is mapping and d.request.dry_run is defined %}{% if d.request.dry_run %}🧪 Dry Run{% else %}🚀 Live Submit{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Single Debit IDs</td>
+              <td align="left">{% if d.request is mapping or d is mapping %}Bank {{ (d.request.bank_account_id if d.request is mapping else none) | default((d.request.resolved_bank_account_id if d.request is mapping else none), true) | default((d.resolved_context.bank_account_id if d.resolved_context is mapping else none), true) | default(d.resolved_bank_account_id, true) | default(d.bank_account_id, true) | default('—', true) }} · Account {{ (d.request.account_id if d.request is mapping else none) | default((d.request.resolved_account_id if d.request is mapping else none), true) | default((d.resolved_context.account_id if d.resolved_context is mapping else none), true) | default(d.resolved_account_id, true) | default(d.account_id, true) | default('—', true) }}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response OK</td>
+              <td align="left">{% if d.response is mapping %}{% if d.response.ok | default(false) %}✅ Yes{% else %}❌ No{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response Valid</td>
+              <td align="left">{% if d.response is mapping and d.response.json is mapping %}{% if d.response.json.isValid | default(false) %}✅ Yes{% else %}❌ No{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response Path</td>
+              <td align="left">{% if d.response is mapping %}{{ d.response.path | default('—') }}{% else %}—{% endif %}</td>
+            </tr>
+            </tbody>
+          </table>
+          {% else %}
+          <p><em>No batch submit response captured yet.</em></p>
+          {% endif %}
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #FF9800;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+            table td { padding: 8px 10px; font-size: 0.9em; }
+            table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; padding-bottom: 10px; }
+            table tr:hover { background: rgba(255,255,255,0.03); }
+
+      - type: markdown
+        content: >-
+          ## API Read Debug
+
+          {% set ph = state_attr('sensor.latest_bill_amount', 'payment_history') | default({}, true) %}
+          {% set do = state_attr('sensor.latest_bill_amount', 'debit_orders') | default({}, true) %}
+          {% set bo = state_attr('sensor.latest_bill_amount', 'batch_orders') | default({}, true) %}
+          {% set ph_count = (ph.get('data', []) if ph is mapping else []) | count %}
+          {% set do_count = (do.get('data', []) if do is mapping else []) | count %}
+          {% set bo_count = (bo.get('data', []) if bo is mapping else []) | count %}
+
+          <table width="100%" border=0>
+          <tbody>
+          <tr>
+          <td align="left"><b>Data Source</b></td>
+          <td align="center"><b>Rows</b></td>
+          <td align="center"><b>Status</b></td>
+          </tr>
+          <tr>
+          <td align="left">Payment History</td>
+          <td align="center">{{ ph_count }}</td>
+          <td align="center">{% if ph_count > 0 %}🟢{% else %}⚪{% endif %}</td>
+          </tr>
+          <tr>
+          <td align="left">Debit Orders</td>
+          <td align="center">{{ do_count }}</td>
+          <td align="center">{% if do_count > 0 %}🟢{% else %}⚪{% endif %}</td>
+          </tr>
+          <tr>
+          <td align="left">Batch Orders</td>
+          <td align="center">{{ bo_count }}</td>
+          <td align="center">{% if bo_count > 0 %}🟢{% else %}⚪{% endif %}</td>
+          </tr>
+          </tbody>
+          </table>
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              border-left: 3px solid #2196F3;
+            }
+            table { width: 100%; border-collapse: collapse; }
+            table tr { border-bottom: 1px solid rgba(255,255,255,0.06); }
+            table tr:first-child { border-bottom: 2px solid rgba(255,255,255,0.15); }
+            table td { padding: 8px 10px; font-size: 0.9em; }
+            table tr:first-child td { color: rgba(255,255,255,0.6); font-size: 0.85em; font-weight: 600; padding-bottom: 10px; }
+            table tr:hover { background: rgba(255,255,255,0.03); }

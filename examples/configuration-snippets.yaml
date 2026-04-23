@@ -1,0 +1,152 @@
+## Siyakhokha + Prepaid tracker helper snippets
+##
+## Copy only the parts you need into your own configuration.yaml.
+## If you already have these top-level keys, merge the entities under them.
+
+utility_meter:
+  prepaid_purchased_kwh_month_calendar:
+    name: prepaid_purchased_kwh_month_calendar
+    source: sensor.prepaid_purchased_kwh_lifetime
+    cycle: monthly
+
+template:
+  - sensor:
+      - name: "Prepaid purchased kWh lifetime"
+        unique_id: "prepaid_purchased_kwh_lifetime"
+        unit_of_measurement: "kWh"
+        icon: "mdi:cash-plus"
+        state: >
+          {{ states('input_number.prepaid_purchased_kwh_lifetime') | float(0) | round(2) }}
+
+      - name: "Prepaid purchase tier month calendar"
+        unique_id: "prepaid_purchase_tier_month_calendar"
+        icon: "mdi:stairs"
+        state: >
+          {% set m = states('sensor.prepaid_purchased_kwh_month_calendar') | float(0) %}
+          {% if m <= 50 %}
+            A.1.2 Block
+          {% elif m <= 600 %}
+            A.2.2 Block
+          {% elif m <= 700 %}
+            A.3.2 Block
+          {% else %}
+            A.4.2 Block
+          {% endif %}
+
+      - name: "Prepaid units to next tier month calendar"
+        unique_id: "prepaid_units_to_next_tier_month_calendar"
+        unit_of_measurement: "kWh"
+        icon: "mdi:arrow-up-bold-circle-outline"
+        state: >
+          {% set m = states('sensor.prepaid_purchased_kwh_month_calendar') | float(0) %}
+          {% if m <= 50 %}
+            {{ [50 - m, 0] | max | round(2) }}
+          {% elif m <= 600 %}
+            {{ [600 - m, 0] | max | round(2) }}
+          {% elif m <= 700 %}
+            {{ [700 - m, 0] | max | round(2) }}
+          {% else %}
+            0
+          {% endif %}
+
+input_number:
+  prepaid_purchase_kwh:
+    name: Prepaid purchase kWh
+    min: 0
+    max: 10000
+    step: 0.01
+    mode: box
+    unit_of_measurement: "kWh"
+
+  prepaid_purchased_kwh_lifetime:
+    name: Prepaid purchased kWh lifetime
+    min: 0
+    max: 1000000
+    step: 0.01
+    mode: box
+    unit_of_measurement: "kWh"
+
+  prepaid_estimate_units_kwh:
+    name: Prepaid estimate units kWh
+    min: 0
+    max: 10000
+    step: 0.01
+    mode: box
+    unit_of_measurement: "kWh"
+
+  siyakhokha_batch_payment_amount:
+    name: Siyakhokha Batch Payment Amount
+    min: 50
+    max: 50000
+    step: 1
+    mode: box
+    unit_of_measurement: "R"
+
+  siyakhokha_single_amount:
+    name: Siyakhokha Single Debit Amount
+    min: 1
+    max: 50000
+    step: 1
+    mode: box
+    unit_of_measurement: "R"
+
+input_button:
+  prepaid_purchase_reset_all:
+    name: Prepaid purchase reset all
+    icon: mdi:restore-alert
+
+  siyakhokha_submit_batch_payment:
+    name: Siyakhokha Submit Batch Payment
+    icon: mdi:cash-fast
+
+  siyakhokha_submit_single_debit_order:
+    name: Siyakhokha Submit Single Debit Order
+    icon: mdi:bank-transfer
+
+input_text:
+  siyakhokha_entry_id:
+    name: Siyakhokha Entry ID
+    max: 64
+
+  siyakhokha_single_bank_account_override:
+    name: Siyakhokha Single Bank Account Override
+    max: 16
+
+  siyakhokha_single_account_override:
+    name: Siyakhokha Single Account Override
+    max: 16
+
+input_boolean:
+  siyakhokha_single_dry_run:
+    name: Siyakhokha Single Dry Run
+    initial: true
+
+  siyakhokha_single_show_advanced:
+    name: Siyakhokha Single Show Advanced
+    initial: false
+
+input_select:
+  siyakhokha_single_bank_account_choice:
+    name: Siyakhokha Single Bank Account Choice
+    options:
+      - "Auto (resolved)"
+    initial: "Auto (resolved)"
+    icon: mdi:bank
+
+  siyakhokha_single_account_choice:
+    name: Siyakhokha Single Municipal Account Choice
+    options:
+      - "Auto (resolved)"
+    initial: "Auto (resolved)"
+    icon: mdi:home-city
+
+  prepaid_estimate_start_tier:
+    name: Prepaid estimate start tier
+    options:
+      - "Current month position"
+      - "A.1.2 Block"
+      - "A.2.2 Block"
+      - "A.3.2 Block"
+      - "A.4.2 Block"
+    initial: "Current month position"
+    icon: mdi:stairs

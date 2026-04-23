@@ -1,0 +1,173 @@
+refresh:
+  name: Refresh bills
+  description: Force an immediate bills refresh from Siyakhokha.
+
+refresh_tariffs:
+  name: Refresh tariffs
+  description: Fetch latest public Ekurhuleni electricity tariff schedule and re-parse rates.
+  fields:
+    entry_id:
+      name: Config entry id
+      description: Optional Siyakhokha Bridge config entry id. If omitted, refresh all entries.
+      required: false
+      selector:
+        text:
+
+submit_batch_payment:
+  name: Submit once-off batch payment
+  description: >-
+    Submit a once-off bulk payment to Siyakhokha. Use with confirmation in UI.
+  fields:
+    entry_id:
+      name: Config entry id
+      description: Siyakhokha Bridge config entry id.
+      required: true
+      selector:
+        text:
+    account_numbers:
+      name: Municipal account numbers
+      description: List of municipal account numbers.
+      required: true
+      selector:
+        object:
+    amounts:
+      name: Payment amounts
+      description: List of amounts matching account_numbers order.
+      required: true
+      selector:
+        object:
+    confirm:
+      name: Confirmation flag
+      description: Must be true to proceed.
+      required: true
+      selector:
+        boolean:
+
+submit_single_debit_order:
+  name: Submit single debit order
+  description: >-
+    Submit a single debit order to /DebitOrder. Defaults to dry-run mode for safety.
+  fields:
+    entry_id:
+      name: Config entry id
+      description: Siyakhokha Bridge config entry id.
+      required: true
+      selector:
+        text:
+    bank_account_id:
+      name: Bank account id
+      description: Siyakhokha bank account id (for example 123456).
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 99999999
+          mode: box
+    account_id:
+      name: Municipal account id
+      description: Siyakhokha account id (for example 123456).
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 99999999
+          mode: box
+    amount:
+      name: Amount
+      description: Amount to submit.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.01
+          mode: box
+    strike_day:
+      name: Strike day
+      description: Day of month (1-31).
+      required: true
+      selector:
+        number:
+          min: 1
+          max: 31
+          mode: box
+    start_date:
+      name: Start date
+      description: Date in YYYY/MM/DD format.
+      required: true
+      selector:
+        text:
+    is_recurring:
+      name: Recurring
+      description: Set true for recurring debit order.
+      required: false
+      default: false
+      selector:
+        boolean:
+    confirm:
+      name: Confirmation flag
+      description: Must be true to proceed.
+      required: true
+      selector:
+        boolean:
+    dry_run:
+      name: Dry run
+      description: If true, do not submit; only return payload preview.
+      required: false
+      default: true
+      selector:
+        boolean:
+
+submit_single_debit_order_simple:
+  name: Submit single debit order (simple)
+  description: >-
+    Submit a single debit order using server-resolved defaults from /DebitOrder.
+    User only needs amount; optional account overrides are supported.
+  fields:
+    entry_id:
+      name: Config entry id
+      description: Siyakhokha Bridge config entry id.
+      required: true
+      selector:
+        text:
+    amount:
+      name: Amount
+      description: Amount to submit.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          step: 0.01
+          mode: box
+    bank_account_id:
+      name: Bank account id override
+      description: Optional override; otherwise resolved automatically.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 99999999
+          mode: box
+    account_id:
+      name: Municipal account id override
+      description: Optional override; otherwise resolved automatically.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 99999999
+          mode: box
+    confirm:
+      name: Confirmation flag
+      description: Must be true to proceed.
+      required: true
+      selector:
+        boolean:
+    dry_run:
+      name: Dry run
+      description: If true, do not submit; only return payload preview.
+      required: false
+      default: true
+      selector:
+        boolean:

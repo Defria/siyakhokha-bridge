@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Siyakhokha Bridge",
+        "description": "Connect your Siyakhokha account to Home Assistant",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "account_number": "Municipal account number",
+          "base_url": "Portal base URL",
+          "scan_interval_minutes": "Refresh interval (minutes)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect. Check credentials or account details."
+    }
+  }
+}

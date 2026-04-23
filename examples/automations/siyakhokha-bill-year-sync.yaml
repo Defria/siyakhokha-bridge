@@ -1,0 +1,42 @@
+alias: Siyakhokha Bill Year Sync
+description: Keep selected bill year aligned to newest available year
+triggers:
+  - trigger: state
+    entity_id: sensor.latest_bill_amount
+  - trigger: homeassistant
+    event: start
+conditions: []
+actions:
+  - variables:
+      bills: "{{ state_attr('sensor.latest_bill_amount', 'bills') | default([], true) }}"
+      years: >-
+        {{ bills
+           | map(attribute='BillDate')
+           | map('regex_replace', '^(\\d{4}).*', '\\1')
+           | select('match', '^\\d{4}$')
+           | map('int')
+           | list
+           | unique
+           | sort }}
+  - if:
+      - condition: template
+        value_template: "{{ years | length > 0 }}"
+    then:
+      - action: input_select.set_options
+        target:
+          entity_id: input_select.siyakhokha_bill_year
+        data:
+          options: "{{ years | map('string') | list }}"
+      - variables:
+          current: "{{ states('input_select.siyakhokha_bill_year') }}"
+          max_year: "{{ (years | max) | string }}"
+      - if:
+          - condition: template
+            value_template: "{{ current not in (years | map('string') | list) }}"
+        then:
+          - action: input_select.select_option
+            target:
+              entity_id: input_select.siyakhokha_bill_year
+            data:
+              option: "{{ max_year }}"
+mode: single

@@ -1,0 +1,28 @@
+- id: '1779991000001'
+  alias: 'Siyakhokha: Submit batch payment from dashboard controls'
+  description: Submits a once-off batch payment using dashboard-provided amount and
+    entry ID. Enforces minimum R50 amount.
+  triggers:
+  - trigger: state
+    entity_id: input_button.siyakhokha_submit_batch_payment
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ states('input_text.siyakhokha_entry_id') | trim != '' }}"
+      sequence:
+      - action: siyakhokha_bridge.submit_batch_payment
+        data:
+          entry_id: "{{ states('input_text.siyakhokha_entry_id') | trim }}"
+          account_numbers:
+          - "{{ state_attr('sensor.latest_bill_amount', 'account_number') | default('YOUR_ACCOUNT_NUMBER', true) | string }}"
+          amounts:
+          - "{{ [states('input_number.siyakhokha_batch_payment_amount') | float(50), 50] | max }}"
+          confirm: true
+    default:
+    - action: persistent_notification.create
+      data:
+        title: Siyakhokha batch payment not submitted
+        message: Set `input_text.siyakhokha_entry_id` first, then tap Submit Batch Payment again.
+  mode: single

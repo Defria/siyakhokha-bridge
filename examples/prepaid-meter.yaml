@@ -1,0 +1,252 @@
+views:
+  - title: Home
+    background: >-
+      center / cover no-repeat fixed
+      url('https://images.wallpapersden.com/image/download/one-piece-zoro-hd-manga-art_bmZpaWWUmZqaraWkpJRnaGxmrWZlbWU.jpg')
+    cards:
+      - type: custom:mushroom-template-card
+        primary: |-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %}
+          {% if units <= 20 %}⚠️ Critical · {{ units }} kWh
+          {% elif units <= 50 %}⚡ Low · {{ units }} kWh
+          {% elif units <= 100 %}🔋 Moderate · {{ units }} kWh
+          {% else %}✅ Healthy · {{ units }} kWh
+          {% endif %}
+        secondary: >-
+          {% set recharged = states('input_number.prepaid_meter_units') |
+          float(0) %} {% set left = states('sensor.prepaid_units_left') |
+          float(0) %} {% set used = recharged - left %} Loaded: {{ recharged }}
+          kWh · Used: {{ [used, 0] | max | round(2) }} kWh
+        icon: >-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %} {% if
+          units <= 20 %}mdi:flash-alert {% elif units <= 50 %}mdi:flash-triangle
+          {% elif units <= 100 %}mdi:lightning-bolt {% else
+          %}mdi:lightning-bolt-circle {% endif %}
+        entity: sensor.prepaid_units_left
+        fill_container: true
+        multiline_secondary: true
+        badge_icon: mdi:counter
+        badge_color: >-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %} {% if
+          units <= 20 %}red {% elif units <= 50 %}deep-orange {% elif units <=
+          100 %}amber {% else %}green {% endif %}
+        color: >-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %} {% if
+          units <= 20 %}red {% elif units <= 50 %}deep-orange {% elif units <=
+          100 %}amber {% else %}green {% endif %}
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.4) !important;
+              backdrop-filter: blur(10px);
+              border: 1px solid rgba(255,255,255,0.08);
+            }
+            ha-state-icon {
+              animation: {{ 'pulse 2s ease-in-out infinite' if states('sensor.prepaid_units_left') | float(0) <= 20 else 'none' }};
+            }
+            @keyframes pulse {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.3; transform: scale(0.9); }
+            }
+      - type: custom:mushroom-chips-card
+        alignment: center
+        chips:
+          - type: template
+            icon: mdi:counter
+            icon_color: >-
+              {% set u = states('sensor.prepaid_units_left') | float(0) %} {% if
+              u <= 20 %}red{% elif u <= 100 %}amber{% else %}green{% endif %}
+            content: >-
+              {{ states("sensor.prepaid_units_left") | float(0) | round(2) }}
+              kWh left
+            entity: sensor.prepaid_units_left
+          - type: template
+            icon: mdi:plus-circle
+            icon_color: cyan
+            content: >-
+              {{ states("input_number.prepaid_meter_units") | float(0) |
+              round(0) }} kWh loaded
+            entity: input_number.prepaid_meter_units
+          - type: template
+            icon: mdi:transmission-tower
+            icon_color: >-
+              {% set load = states('sensor.deye_grid_load') | float(0) %} {% if
+              load > 3000 %}red{% elif load > 1500 %}amber{% else %}green{%
+              endif %}
+            content: '{{ states("sensor.deye_grid_load") }}W grid draw'
+            entity: sensor.deye_grid_load
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.3) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+              padding: 4px 0;
+            }
+      - type: horizontal-stack
+        cards:
+          - type: gauge
+            entity: sensor.prepaid_units_left
+            name: Units Remaining
+            min: 0
+            max: 500
+            unit: kWh
+            needle: true
+            severity:
+              green: 100
+              yellow: 50
+              red: 0
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+          - type: gauge
+            entity: sensor.deye_grid_load
+            name: Grid Draw
+            min: 0
+            max: 5000
+            unit: W
+            needle: true
+            severity:
+              green: 0
+              yellow: 1500
+              red: 3000
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %} {%
+          set load = states('sensor.deye_grid_load') | float(0) %} {% if load >
+          0 %}
+            {% set hours = (units * 1000) / load %}
+            {% set days = (hours / 24) | int %}
+            {% set hrs = (hours % 24) | int %}
+            ⏱️ ~{{ days }}d {{ hrs }}h remaining at current grid draw
+          {% else %}
+            ⏱️ No grid draw · Running on solar/battery
+          {% endif %}
+        secondary: >-
+          Based on {{ states('sensor.deye_grid_load') }}W grid load (only grid
+          burns units)
+        icon: mdi:timer-sand
+        entity: sensor.prepaid_units_left
+        multiline_secondary: true
+        color: >-
+          {% set units = states('sensor.prepaid_units_left') | float(0) %} {%
+          set load = states('sensor.deye_grid_load') | float(0) %} {% if load >
+          0 %}
+            {% set hours = (units * 1000) / load %}
+            {% if hours < 24 %}red
+            {% elif hours < 72 %}amber
+            {% else %}green
+            {% endif %}
+          {% else %}green {% endif %}
+        tap_action:
+          action: more-info
+        card_mod:
+          style: |
+            ha-card {
+              background: rgba(0,0,0,0.35) !important;
+              backdrop-filter: blur(8px);
+              border: 1px solid rgba(255,255,255,0.06);
+            }
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Meter Management
+            card_mod:
+              style: |
+                ha-card { background: none !important; }
+          - type: entities
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+            entities:
+              - entity: input_number.prepaid_meter_units
+                name: 🔌 Recharge Units
+                icon: mdi:plus-circle
+              - entity: input_number.prepaid_purchase_kwh
+                name: Purchase Units (kWh)
+                icon: mdi:cash-plus
+              - entity: sensor.prepaid_purchased_kwh_month_calendar
+                name: Purchased This Month
+                icon: mdi:calendar-month
+              - entity: sensor.prepaid_purchase_tier_month_calendar
+                name: Current Purchase Tier
+                icon: mdi:stairs
+              - entity: sensor.prepaid_units_to_next_tier_month_calendar
+                name: Units Before Next Tier
+                icon: mdi:arrow-up-bold-circle-outline
+              - entity: input_button.prepaid_purchase_reset_all
+                name: Reset Purchase Tracking (Test)
+                icon: mdi:restore-alert
+              - entity: automation.prepaid_meter_recharge
+                name: Capture Recharge Baseline
+                icon: mdi:refresh-auto
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Meter Overview
+            card_mod:
+              style: |
+                ha-card { background: none !important; }
+          - type: glance
+            show_name: true
+            show_icon: true
+            show_state: true
+            columns: 2
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+            entities:
+              - entity: input_number.prepaid_meter_units
+                name: Loaded
+                icon: mdi:plus-circle
+              - entity: sensor.prepaid_units_left
+                name: Remaining
+                icon: mdi:battery-charging
+      - type: vertical-stack
+        cards:
+          - type: custom:mushroom-title-card
+            title: Grid Odometer
+            subtitle: Lifetime grid import tracked since inverter install
+            card_mod:
+              style: |
+                ha-card { background: none !important; }
+          - type: glance
+            show_name: true
+            show_icon: true
+            show_state: true
+            columns: 2
+            card_mod:
+              style: |
+                ha-card {
+                  background: rgba(0,0,0,0.35) !important;
+                  backdrop-filter: blur(8px);
+                  border: 1px solid rgba(255,255,255,0.06);
+                }
+            entities:
+              - entity: sensor.deye_summary_total_grid_import_buy
+                name: Odometer (Live)
+                icon: mdi:speedometer
+              - entity: input_number.prepaid_meter_inverter_total_units
+                name: Odometer (at Recharge)
+                icon: mdi:speedometer-slow

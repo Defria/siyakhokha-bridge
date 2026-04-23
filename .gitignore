@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# local outputs
+*.tar.gz
+*.log
+
+# dev-only artifacts not for public repo
+Siyakhokha-Bridge.postman_collection.json
+Siyakhokha-Bridge.postman_environment.json
+siyakhokha_client.py

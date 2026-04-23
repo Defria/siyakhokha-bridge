@@ -1,0 +1,363 @@
+views:
+  - theme: Backend-selected
+    title: Siyakhokha
+    path: siyakhokha
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+        card_mod:
+          style: |
+            ha-card { background: none !important; }
+
+      - type: custom:mushroom-title-card
+        title: 🧾 Siyakhokha
+        subtitle: Bills, PDFs and latest account state
+
+      - type: custom:mushroom-template-card
+        primary: >-
+          {% set amount = states('sensor.latest_bill_amount') | float(0) %}
+          {% if amount < 0 %}
+            💰 Credit Balance · R{{ (amount | abs) | round(2) }}
+          {% elif amount == 0 %}
+            ✅ Account Settled
+          {% else %}
+            📄 Amount Due · R{{ amount | round(2) }}
+          {% endif %}
+        secondary: >-
+          {% set date = states('sensor.latest_bill_date') %}
+          {% set count = state_attr('sensor.latest_bill_amount', 'bill_count_loaded') | int(0) %}
+          {% set acct = state_attr('sensor.latest_bill_amount', 'account_number') | default('—') %}
+          Account {{ acct }} · Bill date: {{ date }} · {{ count }} bill(s) loaded
+        icon: mdi:cash-clock
+        entity: sensor.latest_bill_amount
+        fill_container: true
+        multiline_secondary: true
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Refresh Bills
+            secondary: Fetch latest from Siyakhokha
+            icon: mdi:refresh
+            entity: button.refresh_bills
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.refresh_bills
+              confirmation:
+                text: Refresh bills from Siyakhokha portal?
+            color: cyan
+          - type: custom:mushroom-template-card
+            primary: Open Latest Bill
+            secondary: Uses local PDF if available
+            icon: mdi:file-document
+            entity: button.open_latest_downloadable_bill
+            tap_action:
+              action: call-service
+              service: button.press
+              target:
+                entity_id: button.open_latest_downloadable_bill
+            color: green
+
+      - type: markdown
+        content: >-
+          ## Bill History
+
+          {% set bills = state_attr('sensor.latest_bill_amount', 'bills') | default([]) %}
+          {% set total = state_attr('sensor.latest_bill_amount', 'total') | int(0) %}
+          {% if bills | length == 0 %}
+          <p><em>No bills loaded yet. Tap Refresh Bills above.</em></p>
+          {% else %}
+          <p><em>Showing {{ bills|length }} bill(s){% if total > 0 %} of {{ total }} total{% endif %}.</em></p>
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>#</b></td>
+              <td align="left"><b>Date</b></td>
+              <td align="right"><b>Amount</b></td>
+              <td align="center"><b>View</b></td>
+              <td align="center"><b>Remote</b></td>
+            </tr>
+            {% for bill in bills %}
+            <tr>
+              <td align="left">{{ loop.index }}</td>
+              <td align="left">{{ bill.BillDate | default('—') }}</td>
+              <td align="right">R{{ (bill.BillAmount | default(0) | float(0)) | round(2) }}</td>
+              <td align="center">{% if bill.DownloadAvailable | default(false) %}<a href="{{ bill.LocalPdfUrl | default(bill.HaPdfUrl) }}" target="_blank" rel="noopener" download>📄 View</a>{% else %}—{% endif %}</td>
+              <td align="center">{% if bill.DownloadAvailable | default(false) and bill.PortalPdfUrl %}<a href="{{ bill.PortalPdfUrl }}" target="_blank" rel="noopener">🌐 Open</a>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+
+  - theme: Backend-selected
+    title: Siyakhokha Payments
+    path: siyakhokha-payments
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+
+      - type: custom:mushroom-title-card
+        title: 💳 Payments
+        subtitle: Payment history, debit orders and batch submission
+
+      - type: horizontal-stack
+        cards:
+          - type: custom:mushroom-template-card
+            primary: Payment History Rows
+            secondary: >-
+              {{ (state_attr('sensor.latest_bill_amount', 'payment_history') or {}).get('data', []) | count }} rows
+            icon: mdi:history
+            color: cyan
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-payment-history-rows'
+          - type: custom:mushroom-template-card
+            primary: Debit Orders Rows
+            secondary: >-
+              {{ (state_attr('sensor.latest_bill_amount', 'debit_orders') or {}).get('data', []) | count }} rows
+            icon: mdi:bank-check
+            color: teal
+            tap_action:
+              action: navigate
+              navigation_path: '#siyakhokha-debit-orders-rows'
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-payment-history-rows'
+            name: Payment History Rows
+            icon: mdi:history
+            show_state: false
+          - type: markdown
+            content: >-
+              ## Payment History Data Rows
+
+              {% set ph = state_attr('sensor.latest_bill_amount', 'payment_history') | default({}, true) %}
+              {% set rows = ph.get('data', []) if ph is mapping else [] %}
+              {% if rows | count == 0 %}
+              <p><em>No payment history rows loaded.</em></p>
+              {% else %}
+              <table width="100%" border=0>
+                <tbody>
+                <tr>
+                  <td align="left"><b>#</b></td>
+                  <td align="left"><b>Date</b></td>
+                  <td align="left"><b>Type</b></td>
+                  <td align="right"><b>Amount</b></td>
+                </tr>
+                {% for r in rows[:40] %}
+                {% if r is mapping %}
+                {% set date_raw = r.PaymentDateTime | default('—') | string %}
+                {% set amount_num = r.AmountPaid | default(0) | float(0) %}
+                {% set pay_type = r.PaymentType | default('—') %}
+                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                <tr>
+                  <td align="left">{{ loop.index }}</td>
+                  <td align="left">{{ date_fmt }}</td>
+                  <td align="left">{{ pay_type }}</td>
+                  <td align="right">R{{ '%.2f' | format(amount_num) }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+      - type: vertical-stack
+        cards:
+          - type: custom:bubble-card
+            card_type: pop-up
+            hash: '#siyakhokha-debit-orders-rows'
+            name: Debit Orders Rows
+            icon: mdi:bank-check
+            show_state: false
+          - type: markdown
+            content: >-
+              ## Debit Orders Data Rows
+
+              {% set d = state_attr('sensor.latest_bill_amount', 'debit_orders') | default({}, true) %}
+              {% set rows = d.get('data', []) if d is mapping else [] %}
+              {% if rows | count == 0 %}
+              <p><em>No debit order rows loaded.</em></p>
+              {% else %}
+              <table width="100%" border=0>
+                <tbody>
+                <tr>
+                  <td align="left"><b>#</b></td>
+                  <td align="left"><b>Date</b></td>
+                  <td align="right"><b>Amount</b></td>
+                  <td align="center"><b>Day</b></td>
+                  <td align="left"><b>Status</b></td>
+                </tr>
+                {% for r in rows[:40] %}
+                {% if r is mapping %}
+                {% set date_raw = r.StartDateTime | default('—') | string %}
+                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                {% set amount = r.Amount | default(0) | float(0) %}
+                {% set strike = r.StrikeDay | default('—') %}
+                {% set status_obj = r.Status | default({}) %}
+                {% set status_name = status_obj.Name if status_obj is mapping else '—' %}
+                <tr>
+                  <td align="left">{{ loop.index }}</td>
+                  <td align="left">{{ date_fmt }}</td>
+                  <td align="right">R{{ '%.2f' | format(amount) }}</td>
+                  <td align="center">{{ strike }}</td>
+                  <td align="left">{{ status_name }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+                </tbody>
+              </table>
+              {% endif %}
+
+      - type: markdown
+        content: |
+          ## Once-off Batch Payment
+
+          Use helper controls in your own dashboard to set amount and `entry_id`.
+
+          Service: `siyakhokha_bridge.submit_batch_payment`
+          Required fields: `entry_id`, `account_numbers`, `amounts`, `confirm: true`
+
+      - type: markdown
+        content: >-
+          ## Latest Batch Orders (Top 10)
+
+          {% set bo = (state_attr('sensor.latest_bill_amount', 'batch_orders') or {}) %}
+          {% set rows = bo.get('data', []) if bo is mapping else [] %}
+          {% if rows | count == 0 %}
+          <p><em>No batch orders loaded.</em></p>
+          {% else %}
+          <p><em>Showing {{ [rows | count, 10] | min }} of {{ rows | count }} batch order(s).</em></p>
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>#</b></td>
+              <td align="left"><b>Date</b></td>
+              <td align="left"><b>Batch Ref</b></td>
+              <td align="left"><b>Status</b></td>
+              <td align="center"><b>Strike</b></td>
+              <td align="right"><b>Amount</b></td>
+            </tr>
+            {% for r in rows[:10] %}
+            {% if r is mapping %}
+            {% set d = r.DebitOrder if r.DebitOrder is mapping else {} %}
+            {% set date_raw = d.StartDateTime | default(r.CreatedDateTime | default('—')) | string %}
+            {% set amount_num = d.Amount | default(0) | float(0) %}
+            {% set batch_ref = r.BatchReference | default(r.BatchNumber | default('—')) %}
+            {% set strike = d.StrikeDay | default('—') %}
+            {% set s = r.Status if r.Status is mapping else {} %}
+            {% set status_name = s.Name | default('—') %}
+            {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
+            {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+            <tr>
+              <td align="left">{{ loop.index }}</td>
+              <td align="left">{{ date_fmt }}</td>
+              <td align="left">{{ batch_ref }}</td>
+              <td align="left">{{ status_name }}</td>
+              <td align="center">{{ strike }}</td>
+              <td align="right">R{{ '%.2f' | format(amount_num) }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            </tbody>
+          </table>
+          {% endif %}
+
+  - theme: Backend-selected
+    title: Debug Siyakhokha
+    path: siyakhokha-debug
+    badges: []
+    cards:
+      - type: custom:mushroom-chips-card
+        chips:
+          - type: back
+
+      - type: custom:mushroom-title-card
+        title: 🛠️ Debug Siyakhokha
+        subtitle: Integration diagnostics and latest submit response
+
+      - type: entities
+        title: Submit Diagnostics
+        show_header_toggle: false
+        entities:
+          - entity: sensor.last_batch_submit_status
+            name: Last batch submit status
+          - entity: sensor.latest_bill_amount
+            name: Bills source sensor
+            secondary_info: last-updated
+
+      - type: markdown
+        content: >-
+          ## Last Batch Submit Response
+
+          {% set d = state_attr('sensor.last_batch_submit_status', 'last_batch_submit_response') | default({}, true) %}
+          {% if d %}
+          <table width="100%" border=0>
+            <tbody>
+            <tr>
+              <td align="left"><b>Field</b></td>
+              <td align="left"><b>Value</b></td>
+            </tr>
+            <tr>
+              <td align="left">Status</td>
+              <td align="left">{% set s = d.status | default('unknown') %}{% if s == 'submitted' %}🟢{% elif s == 'failed' %}🔴{% else %}⚪{% endif %} {{ s }}</td>
+            </tr>
+            <tr>
+              <td align="left">Submitted at</td>
+              <td align="left">{{ d.submitted_at | default('n/a') }}</td>
+            </tr>
+            <tr>
+              <td align="left">Account(s)</td>
+              <td align="left">{% if d.request is mapping %}{% if d.request.account_numbers is defined %}{{ d.request.account_numbers | default(['—']) | join(', ') }}{% elif d.request.account_id is defined %}{{ d.request.account_id }}{% else %}—{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Amount(s)</td>
+              <td align="left">{% if d.request is mapping %}{% if d.request.amounts is defined and (d.request.amounts | count > 0) %}{% for a in d.request.amounts %}R{{ '%.2f' | format(a | float(0)) }}{% if not loop.last %}, {% endif %}{% endfor %}{% elif d.request.amount is defined %}R{{ '%.2f' | format(d.request.amount | float(0)) }}{% else %}—{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Mode</td>
+              <td align="left">{% if d.request is mapping and d.request.dry_run is defined %}{% if d.request.dry_run %}🧪 Dry Run{% else %}🚀 Live Submit{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Single Debit IDs</td>
+              <td align="left">{% if d.request is mapping and d.request.bank_account_id is defined %}Bank {{ d.request.bank_account_id }} · Account {{ d.request.account_id | default('—') }}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response OK</td>
+              <td align="left">{% if d.response is mapping %}{% if d.response.ok | default(false) %}✅ Yes{% else %}❌ No{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response Valid</td>
+              <td align="left">{% if d.response is mapping and d.response.json is mapping %}{% if d.response.json.isValid | default(false) %}✅ Yes{% else %}❌ No{% endif %}{% else %}—{% endif %}</td>
+            </tr>
+            <tr>
+              <td align="left">Response Path</td>
+              <td align="left">{% if d.response is mapping %}{{ d.response.path | default('—') }}{% else %}—{% endif %}</td>
+            </tr>
+            </tbody>
+          </table>
+          {% else %}
+          <p><em>No batch submit response captured yet.</em></p>
+          {% endif %}
+
+      - type: markdown
+        content: >-
+          ## API Read Debug
+
+          {% set ph = state_attr('sensor.latest_bill_amount', 'payment_history') | default({}, true) %}
+          {% set do = state_attr('sensor.latest_bill_amount', 'debit_orders') | default({}, true) %}
+          {% set bo = state_attr('sensor.latest_bill_amount', 'batch_orders') | default({}, true) %}
+          - Payment history rows: {{ (ph.get('data', []) if ph is mapping else []) | count }}
+          - Debit orders rows: {{ (do.get('data', []) if do is mapping else []) | count }}
+          - Batch orders rows: {{ (bo.get('data', []) if bo is mapping else []) | count }}

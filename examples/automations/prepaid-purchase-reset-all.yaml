@@ -1,0 +1,24 @@
+alias: Prepaid purchase - Reset all tracking values
+description: >-
+  Resets prepaid purchase tracking helpers to zero for smoke tests or recovery
+  from bad entries. Trigger this from the reset button in the UI.
+triggers:
+  - trigger: state
+    entity_id:
+      - input_button.prepaid_purchase_reset_all
+conditions: []
+actions:
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.prepaid_purchase_kwh
+    data:
+      value: 0
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.prepaid_purchased_kwh_lifetime
+    data:
+      value: 0
+  - action: utility_meter.reset
+    target:
+      entity_id: sensor.prepaid_purchased_kwh_month_calendar
+mode: single

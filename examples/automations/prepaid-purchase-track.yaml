@@ -1,0 +1,26 @@
+alias: Prepaid purchase - Add transaction to lifetime
+description: >-
+  Adds each entered prepaid purchase (kWh) to the lifetime tracker, then resets
+  the transaction input to 0 for the next purchase entry.
+triggers:
+  - trigger: state
+    entity_id:
+      - input_number.prepaid_purchase_kwh
+conditions:
+  - condition: template
+    value_template: "{{ states('input_number.prepaid_purchase_kwh') | float(0) > 0 }}"
+actions:
+  - variables:
+      add_kwh: "{{ states('input_number.prepaid_purchase_kwh') | float(0) }}"
+      lifetime_kwh: "{{ states('input_number.prepaid_purchased_kwh_lifetime') | float(0) }}"
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.prepaid_purchased_kwh_lifetime
+    data:
+      value: "{{ (lifetime_kwh + add_kwh) | round(2) }}"
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.prepaid_purchase_kwh
+    data:
+      value: 0
+mode: single
