@@ -51,31 +51,66 @@ Example destination:
 4. Enter:
    - Username
    - Password
-   - Municipal account number
    - Base URL (default already set)
    - Refresh interval (minutes)
 
+The integration then logs in and **auto-discovers all municipal accounts linked to your Siyakhokha login**:
+
+- One account → selected automatically.
+- Multiple accounts → a dropdown lets you pick which one this entry should bind to.
+
 Refresh interval supports short testing windows and long production windows:
 
-- Minimum: `1440` minutes (1 day)
+- Minimum: `30` minutes
 - Maximum: `44640` minutes (31 days)
 
 Examples:
 
-- Daily polling: `1440`
-- Weekly polling: `10080`
-- Monthly polling: `43200` (30 days) or `44640` (31 days)
+- Hourly: `60`
+- Every 6 hours: `360`
+- Daily: `1440`
+- Weekly: `10080`
+- Monthly: `43200` (30 days) or `44640` (31 days)
 
-You can change the interval later without deleting the integration:
+You can change the interval, credentials, base URL, account binding, and tariff settings later without
+deleting the integration:
 
 - `Settings -> Devices & Services -> Siyakhokha Bridge -> Configure`
 
 ## Entities created
 
+### Billing
 - `sensor.latest_bill_amount`
 - `sensor.latest_bill_date`
 - `sensor.latest_bill_pdf_url`
 - `sensor.last_batch_submit_status`
+
+### Live Balance (new in 0.2.0)
+Sourced from `/DebitOrder/LoadAccountBatch` — this is the **current outstanding balance** as the portal sees it,
+distinct from `sensor.latest_bill_amount` which reflects the most-recent statement.
+
+- `sensor.current_balance` — live portal balance (negative = credit, zero = settled, positive = due)
+- `sensor.balance_due_date`
+- `sensor.next_debit_run_date`
+
+### Customer Profile (diagnostic, new in 0.2.0)
+Sourced from `/Profile/LoadAccounts`. Marked as `EntityCategory.DIAGNOSTIC`.
+
+- `sensor.account_description`
+- `sensor.account_holder`
+- `sensor.customer_name`
+- `sensor.customer_email`
+- `sensor.customer_phone`
+- `sensor.customer_address`
+
+### Tariff (manual refresh)
+- `sensor.tariff_status`
+- `sensor.tariff_last_refresh`
+- `sensor.tariff_source_document`
+- `sensor.tariff_a2_block_0_50_excl`
+- `sensor.tariff_a2_block_0_50_incl`
+
+### Buttons
 - `button.refresh_bills`
 - `button.open_latest_downloadable_bill`
 
@@ -86,6 +121,13 @@ You can change the interval later without deleting the integration:
 - `debit_orders`
 - `batch_orders`
 - `last_batch_submit_response`
+- `accounts` (all linked accounts discovered)
+- `account_info` (full profile of the bound account)
+- `current_balance`, `balance_due_date`, `balance_next_run_date` (mirrors of the live-balance sensors)
+
+> **Sign convention:** all balance/amount sensors preserve the upstream sign verbatim. Negative is in credit,
+> positive is owing, zero is settled. Dashboard colours follow the same convention (green / cyan / red).
+> Account numbers are never masked.
 
 ## PDF viewing and download URL
 
@@ -201,11 +243,18 @@ Important:
 
 ## Options (post-setup)
 
-You can change polling interval after installation:
+You can edit any setting after installation without deleting/re-adding the integration:
 
 - `Settings -> Devices & Services -> Siyakhokha Bridge -> Configure`
 
-This updates `scan_interval_minutes` without deleting/re-adding the integration.
+Editable fields:
+
+- Username and password (re-validated against the portal on save)
+- Bound account number (re-checked against your linked accounts)
+- Base URL
+- Polling interval (`30` to `44640` minutes)
+- Tariff auto-refresh on/off
+- Tariff refresh interval (hours)
 
 ## Simple bills grid in Lovelace
 

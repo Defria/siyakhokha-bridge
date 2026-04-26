@@ -3,18 +3,48 @@
     "step": {
       "user": {
         "title": "Siyakhokha Bridge",
-        "description": "Connect your Siyakhokha account to Home Assistant",
+        "description": "Connect your Siyakhokha account to Home Assistant. Your linked municipal accounts will be discovered automatically after login.",
+        "data": {
+          "username": "Username",
+          "password": "Password",
+          "base_url": "Portal base URL",
+          "scan_interval_minutes": "Refresh interval (minutes)"
+        }
+      },
+      "pick_account": {
+        "title": "Choose municipal account",
+        "description": "Multiple accounts are linked to this user. Select which one to monitor in this entry.",
+        "data": {
+          "account_number": "Municipal account"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect. Check credentials or portal URL."
+    },
+    "abort": {
+      "already_configured": "This account is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Siyakhokha Bridge options",
+        "description": "Update credentials, account, polling interval, and tariff refresh behaviour.",
         "data": {
           "username": "Username",
           "password": "Password",
           "account_number": "Municipal account number",
           "base_url": "Portal base URL",
-          "scan_interval_minutes": "Refresh interval (minutes)"
+          "scan_interval_minutes": "Refresh interval (minutes)",
+          "tariff_auto_refresh": "Automatically refresh public tariffs",
+          "tariff_refresh_hours": "Tariff refresh interval (hours)"
         }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect. Check credentials or account details."
+      "cannot_connect": "Failed to connect. Check credentials or portal URL.",
+      "unknown_account": "That account number is not linked to this user."
     }
   }
 }

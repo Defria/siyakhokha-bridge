@@ -41,11 +41,15 @@ For the full screenshot set and replication guide, see `examples/README.md`.
 ## What It Does
 
 - Fetches Siyakhokha municipal bills and historical bill rows.
+- Fetches **live account balance** (current portal balance, due date, next debit-run date).
+- Fetches **customer profile** (holder, name, email, phone, physical address) as diagnostic sensors.
+- **Auto-discovers** linked municipal accounts at setup — single account picked automatically, multi-account setups get a dropdown.
 - Fetches payment history, debit orders, and batch orders.
 - Exposes local-first and portal PDF URLs for downloadable bills.
-- Supports once-off batch payment submission via Home Assistant service.
+- Supports once-off batch payment submission and single debit-order submission via Home Assistant services.
+- Exposes A.1.2 Block residential tariff (Excl/Incl VAT) sourced from the Ekurhuleni Schedule 2 PDF (manual refresh).
 - Exposes debug attributes for submit response and API row counts.
-- Supports configurable polling intervals from 1 day up to 31 days.
+- Supports configurable polling intervals from 30 minutes up to 31 days.
 
 ## Install
 
@@ -68,22 +72,62 @@ For the full screenshot set and replication guide, see `examples/README.md`.
 ## Polling Interval
 
 - Configure in integration setup, or later via `Settings -> Devices & Services -> Siyakhokha Bridge -> Configure`.
-- Range: `1440` to `44640` minutes.
+- Range: `30` to `44640` minutes.
 - Recommended values:
+  - Hourly: `60`
+  - Every 6 hours: `360`
   - Daily: `1440`
   - Weekly: `10080`
   - Monthly: `43200` (30 days) or `44640` (31 days)
 
+## Account Auto-Discovery
+
+After you enter your Siyakhokha username and password, the integration calls `/Profile/LoadAccounts`
+and auto-discovers all municipal accounts linked to your login.
+
+- **One account linked**: it's selected automatically. No extra prompt.
+- **Multiple accounts linked**: you'll see a dropdown listing each account with its description and holder name.
+
+You can change which account is bound to a config entry later via the **Configure** button (Options flow),
+which also lets you update credentials, base URL, polling interval, and tariff refresh settings without
+removing and re-adding the integration.
+
 ## Main Entities
 
-- `sensor.latest_bill_amount`
+### Billing
+- `sensor.latest_bill_amount` — most recent statement amount (negative = credit)
 - `sensor.latest_bill_date`
 - `sensor.latest_bill_pdf_url`
 - `sensor.last_batch_submit_status`
+
+### Live Balance (new in 0.2.0)
+- `sensor.current_balance` — live portal balance (negative = credit)
+- `sensor.balance_due_date`
+- `sensor.next_debit_run_date`
+
+### Customer Profile (diagnostic, new in 0.2.0)
+- `sensor.account_description`
+- `sensor.account_holder`
+- `sensor.customer_name`
+- `sensor.customer_email`
+- `sensor.customer_phone`
+- `sensor.customer_address`
+
+### Tariff (manual refresh)
+- `sensor.tariff_status`
+- `sensor.tariff_last_refresh`
+- `sensor.tariff_source_document`
+- `sensor.tariff_a2_block_0_50_excl`
+- `sensor.tariff_a2_block_0_50_incl`
+
+### Buttons
 - `button.refresh_bills`
 - `button.open_latest_downloadable_bill`
 
-`sensor.latest_bill_amount` attributes include `bills`, `payment_history`, `debit_orders`, `batch_orders`, and latest PDF URLs.
+`sensor.latest_bill_amount` attributes include `bills`, `payment_history`, `debit_orders`, `batch_orders`,
+`accounts`, `account_info`, `current_balance`, `balance_due_date`, `balance_next_run_date`, and latest PDF URLs.
+
+> **Sign convention:** balance/bill amounts preserve the upstream sign — negative means in credit, positive means owing, zero means settled. Dashboards colour-code accordingly (green / cyan / red).
 
 ## Services
 

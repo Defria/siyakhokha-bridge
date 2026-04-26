@@ -18,6 +18,30 @@ class SiyakhokhaApiError(Exception):
     """Raised when API communication fails."""
 
 
+def _parse_wcf_date(value: Any) -> str | None:
+    """Convert ASP.NET WCF JSON date '/Date(1779228000000)/' to ISO date string.
+
+    Returns YYYY-MM-DD on success, None if the value is missing/unparseable.
+    Drops the time component since these portal dates are always midnight SAST.
+    """
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        ms = int(value)
+    else:
+        s = str(value).strip()
+        if not s:
+            return None
+        m = re.match(r"^/?Date\((-?\d+)(?:[+-]\d{4})?\)/?$", s)
+        if not m:
+            return None
+        ms = int(m.group(1))
+    try:
+        return datetime.utcfromtimestamp(ms / 1000.0).strftime("%Y-%m-%d")
+    except (OSError, OverflowError, ValueError):
+        return None
+
+
 class SiyakhokhaApi:
     def __init__(self, base_url: str, timeout: int = 60) -> None:
         self.base_url = base_url.rstrip("/")
@@ -25,6 +49,7 @@ class SiyakhokhaApi:
         self._cookie_jar = CookieJar()
         self._opener = build_opener(HTTPCookieProcessor(self._cookie_jar))
         self._account_token: str | None = None
+        self._accounts_token: str | None = None
 
     def _url(self, path: str) -> str:
         return f"{self.base_url}{path}"
@@ -96,6 +121,120 @@ class SiyakhokhaApi:
             raise SiyakhokhaApiError("Could not extract account token.")
         self._account_token = m.group(1)
         return self._account_token
+
+    def ensure_accounts_token(self) -> str:
+        """Token used by /Profile/LoadAccounts (different from ensure_account_token)."""
+        if self._accounts_token:
+            return self._accounts_token
+
+        profile_page = self._request("GET", "/Profile")
+        m = re.search(r"/Profile/LoadAccounts\?q=([^\"'&\s]+)", profile_page)
+        if not m:
+            raise SiyakhokhaApiError("Could not extract /Profile/LoadAccounts token.")
+        self._accounts_token = m.group(1)
+        return self._accounts_token
+
+    def get_account_list(self) -> list[dict[str, Any]]:
+        """Return list of municipal accounts linked to the logged-in customer.
+
+        Each item: {
+            "account_id": int,
+            "account_number": str,
+            "description": str,           # e.g. "2105992772 - SAINT MICHAEL ROAD"
+            "account_holder": str,
+            "account_type": str,           # e.g. "RMS"
+            "is_active": bool,
+            "is_blacklisted": bool | None,
+            "customer": {
+                "first_name", "last_name", "email", "cell_phone",
+                "physical_address": [str], "postal_address": [str],
+            },
+            "raw": {...},                  # full server payload for reference
+        }
+        """
+        token = self.ensure_accounts_token()
+        path = f"/Profile/LoadAccounts?q={quote(unquote(token), safe='')}"
+        text = self._request("GET", path)
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise SiyakhokhaApiError(
+                f"Unexpected /Profile/LoadAccounts response: {text[:240]}"
+            ) from exc
+
+        rows: list[dict[str, Any]] = []
+        for entry in (payload.get("data") or []):
+            if not isinstance(entry, dict):
+                continue
+            account = entry.get("Account") or {}
+            customer = entry.get("Customer") or {}
+            phys = [
+                customer.get(f"PhysicalAddress{i}") for i in range(1, 6)
+            ]
+            postal = [
+                customer.get(f"PostalAddress{i}") for i in range(1, 6)
+            ]
+            rows.append(
+                {
+                    "account_id": entry.get("AccountId"),
+                    "account_number": str(account.get("AccountNumber") or "").strip(),
+                    "description": account.get("Description"),
+                    "account_holder": account.get("AccountHolder"),
+                    "account_type": account.get("AccountType"),
+                    "is_active": bool(account.get("IsActive")),
+                    "is_blacklisted": account.get("IsBlacklisted"),
+                    "customer": {
+                        "first_name": customer.get("FirstName"),
+                        "last_name": customer.get("LastName"),
+                        "email": customer.get("EmailAddress"),
+                        "cell_phone": customer.get("CellPhoneNumber"),
+                        "physical_address": [a for a in phys if a],
+                        "postal_address": [a for a in postal if a],
+                    },
+                    "raw": entry,
+                }
+            )
+        return rows
+
+    def get_account_balance(self) -> list[dict[str, Any]]:
+        """Return current outstanding balance per account from /DebitOrder/LoadAccountBatch.
+
+        Each item: {
+            "account_number": str,
+            "payable": float,             # negative = credit, positive = owed
+            "due_date": "YYYY-MM-DD" | None,
+            "next_run_date": "YYYY-MM-DD" | None,
+            "raw": {...},
+        }
+        """
+        token = self.ensure_account_token()
+        path = f"/DebitOrder/LoadAccountBatch?q={quote(unquote(token), safe='')}"
+        text = self._request("GET", path)
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise SiyakhokhaApiError(
+                f"Unexpected /DebitOrder/LoadAccountBatch response: {text[:240]}"
+            ) from exc
+
+        rows: list[dict[str, Any]] = []
+        for entry in (payload.get("data") or []):
+            if not isinstance(entry, dict):
+                continue
+            try:
+                payable = float(entry.get("PAYABLE")) if entry.get("PAYABLE") is not None else None
+            except (TypeError, ValueError):
+                payable = None
+            rows.append(
+                {
+                    "account_number": str(entry.get("NEW_ACCOUNT") or "").strip(),
+                    "payable": payable,
+                    "due_date": _parse_wcf_date(entry.get("DUE_DATE")),
+                    "next_run_date": _parse_wcf_date(entry.get("NEW_RUNDATE")),
+                    "raw": entry,
+                }
+            )
+        return rows
 
     def get_bills(
         self,

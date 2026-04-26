@@ -6,8 +6,7 @@ import logging
 import os
 import re
 import json
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -224,6 +223,30 @@ class SiyakhokhaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("Failed loading single debit context: %s", exc)
                 single_debit_context = {}
 
+            try:
+                accounts = self.api.get_account_list()
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.warning("Failed loading account list: %s", exc)
+                accounts = []
+
+            try:
+                balance_rows = self.api.get_account_balance()
+            except Exception as exc:  # noqa: BLE001
+                _LOGGER.warning("Failed loading account balance: %s", exc)
+                balance_rows = []
+
+            target_account = str(self._entry_data[CONF_ACCOUNT_NUMBER])
+            account_info: dict[str, Any] = {}
+            for row in accounts:
+                if str(row.get("account_number")) == target_account:
+                    account_info = row
+                    break
+            balance_info: dict[str, Any] = {}
+            for row in balance_rows:
+                if str(row.get("account_number")) == target_account:
+                    balance_info = row
+                    break
+
             if self._is_tariff_refresh_due():
                 self._refresh_tariffs_sync(reason="auto")
 
@@ -286,6 +309,10 @@ class SiyakhokhaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "tariff_last_refresh": self._tariff_data.get("last_refresh"),
                 "tariff_source": self._tariff_data.get("source", {}),
                 "tariff_last_error": self._tariff_data.get("last_error"),
+                "accounts": accounts,
+                "account_info": account_info,
+                "balance_rows": balance_rows,
+                "balance": balance_info,
             }
 
         try:

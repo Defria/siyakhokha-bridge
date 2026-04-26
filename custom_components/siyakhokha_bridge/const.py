@@ -15,4 +15,9 @@ DEFAULT_SCAN_INTERVAL_MINUTES = 180
 DEFAULT_TARIFF_AUTO_REFRESH = False
 DEFAULT_TARIFF_REFRESH_HOURS = 168
 
+# Allowed range for the polling interval (in minutes).
+# Floor: 30 min (avoid hammering the portal). Ceiling: 44640 min (~31 days).
+SCAN_INTERVAL_MIN = 30
+SCAN_INTERVAL_MAX = 44640
+
 PLATFORMS = ["sensor", "button"]
