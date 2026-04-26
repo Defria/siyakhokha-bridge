@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Siyakhokha Bridge — original mark.
+  Concept: an itemised receipt/invoice with a "PAID" stamp.
+  Reads instantly as paying/billing without any City of Ekurhuleni iconography.
+  Palette: cream receipt, teal accent, amber paid stamp, dark background.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Siyakhokha Bridge">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#102434"/>
+      <stop offset="1" stop-color="#081420"/>
+    </linearGradient>
+    <linearGradient id="paperGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBF7EE"/>
+      <stop offset="1" stop-color="#ECE3CF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded square background. -->
+  <rect x="32" y="32" width="448" height="448" rx="84" ry="84" fill="url(#bgGrad)"/>
+
+  <!--
+    Receipt/invoice paper.
+    Tilted slightly to feel paper-like, with a torn-strip bottom edge and
+    a curled top edge implied by the rounded top corners.
+  -->
+  <g transform="translate(256 264) rotate(-6) translate(-150 -184)">
+    <!-- paper body with torn-strip bottom -->
+    <path d="M 0 24
+             Q 0 0 24 0
+             L 276 0
+             Q 300 0 300 24
+             L 300 332
+             L 285 320 L 270 332 L 255 320 L 240 332 L 225 320
+             L 210 332 L 195 320 L 180 332 L 165 320 L 150 332
+             L 135 320 L 120 332 L 105 320 L 90  332 L 75  320
+             L 60  332 L 45  320 L 30  332 L 15  320 L 0   332 Z"
+          fill="url(#paperGrad)"
+          stroke="#C9BE9E"
+          stroke-width="2"/>
+
+    <!-- header band: company name placeholder + total -->
+    <rect x="32" y="40" width="180" height="14" rx="4" fill="#1F3D54"/>
+    <rect x="32" y="64" width="120" height="8"  rx="3" fill="#7E92A4"/>
+    <rect x="32" y="80" width="100" height="8"  rx="3" fill="#7E92A4"/>
+
+    <!-- divider -->
+    <line x1="32" y1="104" x2="268" y2="104" stroke="#C9BE9E" stroke-width="2" stroke-dasharray="6 4"/>
+
+    <!-- itemised lines: left = description, right = amount -->
+    <g font-family="monospace">
+      <rect x="32"  y="120" width="120" height="8" rx="3" fill="#52606D"/>
+      <rect x="208" y="120" width="60"  height="8" rx="3" fill="#0E9F8A"/>
+
+      <rect x="32"  y="142" width="140" height="8" rx="3" fill="#52606D"/>
+      <rect x="218" y="142" width="50"  height="8" rx="3" fill="#0E9F8A"/>
+
+      <rect x="32"  y="164" width="100" height="8" rx="3" fill="#52606D"/>
+      <rect x="223" y="164" width="45"  height="8" rx="3" fill="#0E9F8A"/>
+
+      <rect x="32"  y="186" width="130" height="8" rx="3" fill="#52606D"/>
+      <rect x="213" y="186" width="55"  height="8" rx="3" fill="#0E9F8A"/>
+    </g>
+
+    <!-- divider before total -->
+    <line x1="32" y1="212" x2="268" y2="212" stroke="#C9BE9E" stroke-width="2" stroke-dasharray="6 4"/>
+
+    <!-- TOTAL row, bolder -->
+    <rect x="32"  y="226" width="70"  height="12" rx="4" fill="#1F3D54"/>
+    <rect x="178" y="224" width="90"  height="16" rx="4" fill="#0E9F8A"/>
+  </g>
+
+  <!--
+    "PAID" stamp: tilted rounded-rect frame with the word PAID inside.
+    Drawn separately on top of the receipt so it overlaps the items
+    like an inked stamp would.
+  -->
+  <g transform="translate(330 332) rotate(-18)">
+    <!-- outer stamp ring -->
+    <rect x="-70" y="-32" width="140" height="64" rx="10" ry="10"
+          fill="none" stroke="#D94A3D" stroke-width="6"/>
+    <!-- inner stamp ring -->
+    <rect x="-62" y="-24" width="124" height="48" rx="6" ry="6"
+          fill="none" stroke="#D94A3D" stroke-width="3"/>
+    <!-- PAID text -->
+    <text x="0" y="10" text-anchor="middle"
+          font-family="Impact, 'Arial Black', sans-serif"
+          font-size="36" font-weight="900"
+          fill="#D94A3D"
+          letter-spacing="4">PAID</text>
+  </g>
+</svg>

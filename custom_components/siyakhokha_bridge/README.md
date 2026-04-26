@@ -1,7 +1,7 @@
 # Siyakhokha Bridge (Home Assistant custom integration)
 
 <p align="center">
-  <img src="./COELogo.png" alt="City of Ekurhuleni" width="220" />
+  <img src="./logo_banner.png" alt="Siyakhokha Bridge" width="220" />
 </p>
 
 <p align="center">
