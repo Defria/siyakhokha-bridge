@@ -1,7 +1,7 @@
 # Siyakhokha Bridge
 
 <p align="center">
-  <img src="./logo_square.png" alt="Siyakhokha Bridge logo" width="180" />
+  <img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/logo_square.png" alt="Siyakhokha Bridge logo" width="180" />
 </p>
 
 <p align="center">
@@ -23,16 +23,16 @@ Visual preview from the included dashboard setup:
 
 <table>
   <tr>
-    <td><img src="./examples/screenshots/siyakhokha_dashboard1.png" alt="Siyakhokha dashboard preview 1" /></td>
-    <td><img src="./examples/screenshots/siyakhokha_dashboard2.png" alt="Siyakhokha dashboard preview 2" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/siyakhokha_dashboard1.png" alt="Siyakhokha dashboard preview 1" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/siyakhokha_dashboard2.png" alt="Siyakhokha dashboard preview 2" /></td>
   </tr>
   <tr>
-    <td><img src="./examples/screenshots/siyakhokha_dashboard3.png" alt="Siyakhokha dashboard preview 3" /></td>
-    <td><img src="./examples/screenshots/siyakhokha_dashboard4.png" alt="Siyakhokha dashboard preview 4" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/siyakhokha_dashboard3.png" alt="Siyakhokha dashboard preview 3" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/siyakhokha_dashboard4.png" alt="Siyakhokha dashboard preview 4" /></td>
   </tr>
   <tr>
-    <td><img src="./examples/screenshots/siyakhokha_dashboard5.png" alt="Siyakhokha dashboard preview 5" /></td>
-    <td><img src="./examples/screenshots/prepaid_meter_dashboard1.png" alt="Prepaid meter dashboard preview" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/siyakhokha_dashboard5.png" alt="Siyakhokha dashboard preview 5" /></td>
+    <td><img src="https://raw.githubusercontent.com/Defria/siyakhokha-bridge/main/examples/screenshots/prepaid_meter_dashboard1.png" alt="Prepaid meter dashboard preview" /></td>
   </tr>
 </table>
 
