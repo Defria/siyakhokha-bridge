@@ -129,6 +129,8 @@ removing and re-adding the integration.
 
 > **Sign convention:** balance/bill amounts preserve the upstream sign — negative means in credit, positive means owing, zero means settled. Dashboards colour-code accordingly (green / cyan / red).
 
+> **Statements in credit have no PDF.** The Siyakhokha portal only generates printable statement PDFs when an amount is owed; credit rows return `DownloadLink: "UNPAYABLE"` and the portal exposes no alternate endpoint. Such rows show `—` in the dashboard PDF columns by design.
+
 ## Services
 
 - `siyakhokha_bridge.refresh`
