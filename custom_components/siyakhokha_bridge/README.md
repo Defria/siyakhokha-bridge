@@ -170,11 +170,11 @@ Remote links are still exposed in parallel:
 
 `button.open_latest_downloadable_bill` creates a persistent notification with a clickable PDF link.
 
-### Why some statements have no PDF
+### When a statement has no PDF
 
-Statements where the account is in credit (negative bill amount) do not have a downloadable PDF. This is by design on the Siyakhokha portal: the API returns `DownloadLink: "UNPAYABLE"` for those rows and the portal itself renders no download button. There is no alternate endpoint that serves a PDF for a credit row — the municipality only generates printable statements when there is an amount owed.
+The Siyakhokha portal now serves printable PDFs for credit accounts too, and the integration downloads them automatically. On rare occasions the API may still return `DownloadLink: "UNPAYABLE"` for a row — typically a transient portal issue — in which case no PDF is fetched.
 
-In the dashboards these rows show `—` in the Local PDF and Portal PDF columns, which is correct. The row data (date, amount, identifier) is still available in `sensor.latest_bill_amount` attributes.
+In the dashboards these rare rows show `—` in the Local PDF and Portal PDF columns. The row data (date, amount, identifier) is still available in `sensor.latest_bill_amount` attributes.
 
 ## Dashboard example
 
