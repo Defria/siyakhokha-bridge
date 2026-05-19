@@ -128,14 +128,13 @@ views:
               action: navigate
               navigation_path: '#siyakhokha-debit-orders-rows'
 
-      - type: vertical-stack
+      - type: custom:bubble-card
+        card_type: pop-up
+        hash: '#siyakhokha-payment-history-rows'
+        name: Payment History Rows
+        icon: mdi:history
+        show_state: false
         cards:
-          - type: custom:bubble-card
-            card_type: pop-up
-            hash: '#siyakhokha-payment-history-rows'
-            name: Payment History Rows
-            icon: mdi:history
-            show_state: false
           - type: markdown
             content: >-
               ## Payment History Data Rows
@@ -172,14 +171,13 @@ views:
               </table>
               {% endif %}
 
-      - type: vertical-stack
+      - type: custom:bubble-card
+        card_type: pop-up
+        hash: '#siyakhokha-debit-orders-rows'
+        name: Debit Orders Rows
+        icon: mdi:bank-check
+        show_state: false
         cards:
-          - type: custom:bubble-card
-            card_type: pop-up
-            hash: '#siyakhokha-debit-orders-rows'
-            name: Debit Orders Rows
-            icon: mdi:bank-check
-            show_state: false
           - type: markdown
             content: >-
               ## Debit Orders Data Rows

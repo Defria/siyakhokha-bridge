@@ -139,17 +139,16 @@ views:
           action: navigate
           navigation_path: '#sample-effective-submit-payload'
 
-      - type: vertical-stack
+      - type: custom:bubble-card
+        card_type: pop-up
+        hash: '#sample-bank-details-payload'
+        name: Selected Bank Details Payload
+        icon: mdi:bank-outline
+        show_state: false
+        bg_color: '#102027'
+        bg_opacity: 10
+        bg_blur: 14
         cards:
-          - type: custom:bubble-card
-            card_type: pop-up
-            hash: '#sample-bank-details-payload'
-            name: Selected Bank Details Payload
-            icon: mdi:bank-outline
-            show_state: false
-            bg_color: '#102027'
-            bg_opacity: 10
-            bg_blur: 14
           - type: markdown
             content: >-
               {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
@@ -200,17 +199,16 @@ views:
                   overflow: auto;
                 }
 
-      - type: vertical-stack
+      - type: custom:bubble-card
+        card_type: pop-up
+        hash: '#sample-single-debit-context-payload'
+        name: Single Debit Context Payload
+        icon: mdi:code-json
+        show_state: false
+        bg_color: '#102027'
+        bg_opacity: 10
+        bg_blur: 14
         cards:
-          - type: custom:bubble-card
-            card_type: pop-up
-            hash: '#sample-single-debit-context-payload'
-            name: Single Debit Context Payload
-            icon: mdi:code-json
-            show_state: false
-            bg_color: '#102027'
-            bg_opacity: 10
-            bg_blur: 14
           - type: markdown
             content: >-
               {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
@@ -241,17 +239,16 @@ views:
                   overflow: auto;
                 }
 
-      - type: vertical-stack
+      - type: custom:bubble-card
+        card_type: pop-up
+        hash: '#sample-effective-submit-payload'
+        name: Effective Submission Payload
+        icon: mdi:send-check-outline
+        show_state: false
+        bg_color: '#102027'
+        bg_opacity: 10
+        bg_blur: 14
         cards:
-          - type: custom:bubble-card
-            card_type: pop-up
-            hash: '#sample-effective-submit-payload'
-            name: Effective Submission Payload
-            icon: mdi:send-check-outline
-            show_state: false
-            bg_color: '#102027'
-            bg_opacity: 10
-            bg_blur: 14
           - type: markdown
             content: >-
               {% set ctx = state_attr('sensor.latest_bill_amount', 'single_debit_context') | default({}, true) %}
