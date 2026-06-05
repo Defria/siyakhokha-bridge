@@ -82,6 +82,10 @@ class SiyakhokhaApi:
         )
 
     def login(self, username: str, password: str) -> None:
+        self._cookie_jar = CookieJar()
+        self._opener = build_opener(HTTPCookieProcessor(self._cookie_jar))
+        self._account_token = None
+        self._accounts_token = None
         login_page = self._request("GET", "/Account/Login")
         m = re.search(
             r'name="__RequestVerificationToken"[^>]*value="([^"]+)"', login_page, re.S
