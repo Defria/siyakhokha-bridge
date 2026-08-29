@@ -151,7 +151,6 @@ class SiyakhokhaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.api.login(
                 self._entry_data[CONF_USERNAME], self._entry_data[CONF_PASSWORD]
             )
-            self.api.ensure_account_token()
 
         await self.hass.async_add_executor_job(_sync_init)
 
@@ -166,7 +165,6 @@ class SiyakhokhaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.api.login(
                 self._entry_data[CONF_USERNAME], self._entry_data[CONF_PASSWORD]
             )
-            self.api.ensure_account_token()
 
             page_size = 50
             max_pages = 40
@@ -218,7 +216,7 @@ class SiyakhokhaCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 batch_orders = {}
 
             try:
-                single_debit_context = self.api.get_single_debit_order_context()
+                single_debit_context = self.api.get_debit_order_context()
             except Exception as exc:  # noqa: BLE001
                 _LOGGER.warning("Failed loading single debit context: %s", exc)
                 single_debit_context = {}

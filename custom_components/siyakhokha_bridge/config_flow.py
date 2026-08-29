@@ -53,7 +53,7 @@ class SiyakhokhaBridgeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 accounts = api.get_account_list()
                 if not accounts:
                     raise SiyakhokhaApiError(
-                        "Login OK but no accounts returned by /Profile/LoadAccounts"
+                        "Login OK but no accounts returned by /api/mobile/latestaccounts"
                     )
                 return accounts
 
