@@ -107,7 +107,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coordinator_item._entry_data["username"],
                     coordinator_item._entry_data["password"],
                 )
-                coordinator_item.api.ensure_account_token()
                 context = coordinator_item.api.get_bulk_payment_context()
                 result = coordinator_item.api.submit_bulk_payment(
                     account_numbers=[str(a) for a in accounts],
@@ -175,7 +174,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coordinator_item._entry_data["username"],
                     coordinator_item._entry_data["password"],
                 )
-                coordinator_item.api.ensure_account_token()
                 result = coordinator_item.api.submit_single_debit_order(
                     bank_account_id=bank_account_id,
                     account_id=account_id,
@@ -255,7 +253,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     coordinator_item._entry_data["username"],
                     coordinator_item._entry_data["password"],
                 )
-                coordinator_item.api.ensure_account_token()
 
                 context = coordinator_item.api.get_single_debit_order_context()
                 resolved = (

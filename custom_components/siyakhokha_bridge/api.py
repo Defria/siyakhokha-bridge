@@ -1,7 +1,25 @@
-"""Siyakhokha API helper for Home Assistant integration."""
+"""API-first Siyakhokha client for the Home Assistant integration.
+
+Normal polling uses only the official Basic-auth mobile JSON API documented at
+``/swagger/docs/v1``.  The ASP.NET portal session is created lazily and is used
+only for features that the current API does not provide reliably: statement PDF
+downloads and on-demand debit-order submissions.
+
+Flow:
+  1. ``login()``      GET /api/mobile/customer          (Basic) -> customer
+                      GET /api/mobile/latestaccounts    (Basic) -> balances
+                      GET /api/mobile/accounts          (Basic) -> linked account ids
+  2. bills            GET /api/mobile/billlist          (Basic) -> statement rows
+  3. history          GET /api/mobile/getpaymenthistory (Basic) -> all payment/debit data
+  4. PDFs/writes      POST /Account/Login (lazy) and use the current portal forms
+
+The legacy ``/mobilepayment/paymenthistory`` HTML token bootstrap and the
+``Load*?q=`` history routes are deliberately not used.
+"""
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from io import BytesIO
@@ -18,43 +36,82 @@ class SiyakhokhaApiError(Exception):
     """Raised when API communication fails."""
 
 
-def _parse_wcf_date(value: Any) -> str | None:
-    """Convert ASP.NET WCF JSON date '/Date(1779228000000)/' to ISO date string.
-
-    Returns YYYY-MM-DD on success, None if the value is missing/unparseable.
-    Drops the time component since these portal dates are always midnight SAST.
-    """
-    if value is None:
-        return None
-    if isinstance(value, (int, float)):
-        ms = int(value)
-    else:
-        s = str(value).strip()
-        if not s:
-            return None
-        m = re.match(r"^/?Date\((-?\d+)(?:[+-]\d{4})?\)/?$", s)
-        if not m:
-            return None
-        ms = int(m.group(1))
-    try:
-        return datetime.utcfromtimestamp(ms / 1000.0).strftime("%Y-%m-%d")
-    except (OSError, OverflowError, ValueError):
-        return None
-
-
 class SiyakhokhaApi:
     def __init__(self, base_url: str, timeout: int = 60) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        # Stateless client used for the mobile JSON API (Basic auth header only).
+        self._mobile_opener = build_opener()
+        # Cookie jar used for the lazy ASP.NET portal session (PDFs + submissions).
         self._cookie_jar = CookieJar()
         self._opener = build_opener(HTTPCookieProcessor(self._cookie_jar))
-        self._account_token: str | None = None
-        self._accounts_token: str | None = None
+        self._username: str | None = None
+        self._password: str | None = None
+        self._accounts: list[dict[str, Any]] | None = None
+        self._linked_accounts: list[dict[str, Any]] | None = None
+        self._customer: dict[str, Any] | None = None
+        self._payment_history_payload: dict[str, Any] | None = None
+        self._portal_logged_in = False
+
+    # ------------------------------------------------------------------ #
+    # low-level HTTP helpers
+    # ------------------------------------------------------------------ #
 
     def _url(self, path: str) -> str:
+        if path.startswith("http://") or path.startswith("https://"):
+            return path
         return f"{self.base_url}{path}"
 
-    def _request_bytes(
+    def _basic_auth(self) -> str:
+        if not self._username or not self._password:
+            raise SiyakhokhaApiError("API username or password is not set.")
+        raw = f"{self._username}:{self._password}".encode("utf-8")
+        return "Basic " + base64.b64encode(raw).decode("ascii")
+
+    def _mobile_request_bytes(
+        self,
+        method: str,
+        path: str,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> bytes:
+        req = Request(self._url(path), data=data, method=method)
+        req.add_header("Authorization", self._basic_auth())
+        for key, value in (headers or {}).items():
+            req.add_header(key, value)
+        try:
+            with self._mobile_opener.open(req, timeout=self.timeout) as resp:
+                return resp.read()
+        except Exception as exc:
+            raise SiyakhokhaApiError(f"Request failed for {path}: {exc}") from exc
+
+    def _mobile_request(
+        self,
+        method: str,
+        path: str,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> str:
+        return self._mobile_request_bytes(
+            method, path, data=data, headers=headers
+        ).decode("utf-8", errors="replace")
+
+    def _mobile_json(
+        self,
+        method: str,
+        path: str,
+        data: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
+        text = self._mobile_request(method, path, data=data, headers=headers)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise SiyakhokhaApiError(
+                f"Unexpected response for {path}: {text[:240]}"
+            ) from exc
+
+    def _portal_request_bytes(
         self,
         method: str,
         path: str,
@@ -68,174 +125,188 @@ class SiyakhokhaApi:
             with self._opener.open(req, timeout=self.timeout) as resp:
                 return resp.read()
         except Exception as exc:
-            raise SiyakhokhaApiError(f"Request failed for {path}: {exc}") from exc
+            raise SiyakhokhaApiError(f"Portal request failed for {path}: {exc}") from exc
 
-    def _request(
+    def _portal_request(
         self,
         method: str,
         path: str,
         data: bytes | None = None,
         headers: dict[str, str] | None = None,
     ) -> str:
-        return self._request_bytes(method, path, data=data, headers=headers).decode(
-            "utf-8", errors="replace"
-        )
+        return self._portal_request_bytes(
+            method, path, data=data, headers=headers
+        ).decode("utf-8", errors="replace")
+
+    # ------------------------------------------------------------------ #
+    # auth + priming
+    # ------------------------------------------------------------------ #
 
     def login(self, username: str, password: str) -> None:
-        self._cookie_jar = CookieJar()
-        self._opener = build_opener(HTTPCookieProcessor(self._cookie_jar))
-        self._account_token = None
-        self._accounts_token = None
-        login_page = self._request("GET", "/Account/Login")
+        """Validate Basic auth and refresh the API-side customer/account caches.
+
+        No portal request is made here.  The portal session remains lazy so a
+        normal Home Assistant refresh never parses HTML or creates cookies.
+        """
+        if self._username != username or self._password != password:
+            self._portal_logged_in = False
+            self._cookie_jar = CookieJar()
+            self._opener = build_opener(HTTPCookieProcessor(self._cookie_jar))
+
+        self._username = username
+        self._password = password
+        self._payment_history_payload = None
+
+        customer = self._mobile_json("GET", "/api/mobile/customer")
+        if not isinstance(customer, dict) or customer.get("systemUserId") is None:
+            raise SiyakhokhaApiError(
+                "Mobile login failed: invalid /api/mobile/customer response"
+            )
+        self._customer = customer
+        self._refresh_accounts()
+
+    def _refresh_accounts(self) -> None:
+        latest = self._mobile_json("GET", "/api/mobile/latestaccounts")
+        self._accounts = latest if isinstance(latest, list) else []
+
+        try:
+            linked = self._mobile_json("GET", "/api/mobile/accounts")
+        except SiyakhokhaApiError:
+            # ``latestaccounts`` is sufficient for setup/balance reads.  Keep a
+            # graceful fallback for profiles where the richer route is disabled.
+            linked = []
+        self._linked_accounts = linked if isinstance(linked, list) else []
+
+    def _ensure_portal_session(self) -> None:
+        """Log into the ASP.NET portal (lazily, once per credentials)."""
+        if self._portal_logged_in:
+            return
+        if not self._username or not self._password:
+            raise SiyakhokhaApiError("Missing credentials for portal login")
+
+        login_page = self._portal_request("GET", "/Account/Login")
         m = re.search(
             r'name="__RequestVerificationToken"[^>]*value="([^"]+)"', login_page, re.S
         )
         if not m:
-            raise SiyakhokhaApiError("Unable to extract login token.")
+            raise SiyakhokhaApiError("Unable to extract portal login token.")
 
         payload = urlencode(
             {
                 "__RequestVerificationToken": m.group(1),
-                "UserName": username,
-                "Password": password,
+                "UserName": self._username,
+                "Password": self._password,
                 "RememberMe": "false",
             }
         ).encode("utf-8")
 
-        self._request(
+        response = self._portal_request(
             "POST",
             "/Account/Login",
             data=payload,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
+        if re.search(r'action=["\']/Account/Login["\']', response, re.IGNORECASE):
+            raise SiyakhokhaApiError("Portal login failed: credentials were rejected.")
+        self._portal_logged_in = True
 
-        dashboard = self._request("GET", "/Profile/Dashboard")
-        if "Logged in as" not in dashboard:
-            raise SiyakhokhaApiError("Login failed or session not authenticated.")
-
-    def ensure_account_token(self) -> str:
-        if self._account_token:
-            return self._account_token
-
-        payment_history_page = self._request("GET", "/Payment/PaymentHistory")
-        m = re.search(
-            r"/Payment/LoadPaymentHistory\?q=([^\"'&]+)", payment_history_page
-        )
-        if not m:
-            raise SiyakhokhaApiError("Could not extract account token.")
-        self._account_token = m.group(1)
-        return self._account_token
-
-    def ensure_accounts_token(self) -> str:
-        """Token used by /Profile/LoadAccounts (different from ensure_account_token)."""
-        if self._accounts_token:
-            return self._accounts_token
-
-        profile_page = self._request("GET", "/Profile")
-        m = re.search(r"/Profile/LoadAccounts\?q=([^\"'&\s]+)", profile_page)
-        if not m:
-            raise SiyakhokhaApiError("Could not extract /Profile/LoadAccounts token.")
-        self._accounts_token = m.group(1)
-        return self._accounts_token
+    # ------------------------------------------------------------------ #
+    # accounts / balance / bills (mobile JSON)
+    # ------------------------------------------------------------------ #
 
     def get_account_list(self) -> list[dict[str, Any]]:
-        """Return list of municipal accounts linked to the logged-in customer.
+        """Return linked municipal accounts from the current mobile APIs.
 
-        Each item: {
-            "account_id": int,
-            "account_number": str,
-            "description": str,           # e.g. "2105992772 - SAINT MICHAEL ROAD"
-            "account_holder": str,
-            "account_type": str,           # e.g. "RMS"
-            "is_active": bool,
-            "is_blacklisted": bool | None,
-            "customer": {
-                "first_name", "last_name", "email", "cell_phone",
-                "physical_address": [str], "postal_address": [str],
-            },
-            "raw": {...},                  # full server payload for reference
-        }
+        ``latestaccounts`` supplies current descriptions/holders while
+        ``accounts`` supplies stable internal ids needed for debit-order forms.
+        The large upstream customer/account graphs are intentionally reduced
+        before being exposed as Home Assistant state attributes.
         """
-        token = self.ensure_accounts_token()
-        path = f"/Profile/LoadAccounts?q={quote(unquote(token), safe='')}"
-        text = self._request("GET", path)
-        try:
-            payload = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected /Profile/LoadAccounts response: {text[:240]}"
-            ) from exc
+        if self._accounts is None or self._linked_accounts is None:
+            self._refresh_accounts()
+
+        customer = self._customer or {}
+        cust = {
+            "first_name": customer.get("firstName"),
+            "last_name": customer.get("lastName"),
+            "email": customer.get("emailAddress"),
+            "cell_phone": customer.get("cellPhoneNumber"),
+            "physical_address": [
+                customer.get(f"physicalAddress{i}")
+                for i in range(1, 6)
+                if customer.get(f"physicalAddress{i}")
+            ],
+            "postal_address": [
+                customer.get(f"postalAddress{i}")
+                for i in range(1, 6)
+                if customer.get(f"postalAddress{i}")
+            ],
+        }
+
+        linked_by_number: dict[str, dict[str, Any]] = {}
+        for linked in self._linked_accounts or []:
+            if not isinstance(linked, dict):
+                continue
+            account = linked.get("account")
+            if not isinstance(account, dict):
+                continue
+            number = str(account.get("accountNumber") or "").strip()
+            if number:
+                linked_by_number[number] = linked
+
+        latest_by_number = {
+            str(entry.get("accountNumber") or "").strip(): entry
+            for entry in (self._accounts or [])
+            if isinstance(entry, dict) and entry.get("accountNumber")
+        }
+        numbers = list(latest_by_number)
+        numbers.extend(number for number in linked_by_number if number not in latest_by_number)
 
         rows: list[dict[str, Any]] = []
-        for entry in (payload.get("data") or []):
-            if not isinstance(entry, dict):
-                continue
-            account = entry.get("Account") or {}
-            customer = entry.get("Customer") or {}
-            phys = [
-                customer.get(f"PhysicalAddress{i}") for i in range(1, 6)
-            ]
-            postal = [
-                customer.get(f"PostalAddress{i}") for i in range(1, 6)
-            ]
+        for number in numbers:
+            latest = latest_by_number.get(number, {})
+            linked = linked_by_number.get(number, {})
+            account = linked.get("account") if isinstance(linked, dict) else {}
+            account = account if isinstance(account, dict) else {}
             rows.append(
                 {
-                    "account_id": entry.get("AccountId"),
-                    "account_number": str(account.get("AccountNumber") or "").strip(),
-                    "description": account.get("Description"),
-                    "account_holder": account.get("AccountHolder"),
-                    "account_type": account.get("AccountType"),
-                    "is_active": bool(account.get("IsActive")),
-                    "is_blacklisted": account.get("IsBlacklisted"),
-                    "customer": {
-                        "first_name": customer.get("FirstName"),
-                        "last_name": customer.get("LastName"),
-                        "email": customer.get("EmailAddress"),
-                        "cell_phone": customer.get("CellPhoneNumber"),
-                        "physical_address": [a for a in phys if a],
-                        "postal_address": [a for a in postal if a],
-                    },
-                    "raw": entry,
+                    "account_id": linked.get("accountId") or account.get("id"),
+                    "account_number": number,
+                    "description": latest.get("description") or account.get("description"),
+                    "account_holder": latest.get("accountHolder") or account.get("accountHolder"),
+                    "account_type": account.get("accountType"),
+                    "is_active": account.get("isActive", True),
+                    "is_blacklisted": account.get("isBlacklisted"),
+                    "customer": cust,
                 }
             )
         return rows
 
     def get_account_balance(self) -> list[dict[str, Any]]:
-        """Return current outstanding balance per account from /DebitOrder/LoadAccountBatch.
+        """Return current balance per account from /api/mobile/latestaccounts.
 
-        Each item: {
-            "account_number": str,
-            "payable": float,             # negative = credit, positive = owed
-            "due_date": "YYYY-MM-DD" | None,
-            "next_run_date": "YYYY-MM-DD" | None,
-            "raw": {...},
-        }
+        ``next_run_date`` is not exposed by the mobile endpoint and is None.
         """
-        token = self.ensure_account_token()
-        path = f"/DebitOrder/LoadAccountBatch?q={quote(unquote(token), safe='')}"
-        text = self._request("GET", path)
-        try:
-            payload = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected /DebitOrder/LoadAccountBatch response: {text[:240]}"
-            ) from exc
-
+        if self._accounts is None:
+            self._refresh_accounts()
         rows: list[dict[str, Any]] = []
-        for entry in (payload.get("data") or []):
+        for entry in self._accounts or []:
             if not isinstance(entry, dict):
                 continue
             try:
-                payable = float(entry.get("PAYABLE")) if entry.get("PAYABLE") is not None else None
+                payable = (
+                    float(entry.get("latestAmountDue"))
+                    if entry.get("latestAmountDue") is not None
+                    else None
+                )
             except (TypeError, ValueError):
                 payable = None
             rows.append(
                 {
-                    "account_number": str(entry.get("NEW_ACCOUNT") or "").strip(),
+                    "account_number": str(entry.get("accountNumber") or "").strip(),
                     "payable": payable,
-                    "due_date": _parse_wcf_date(entry.get("DUE_DATE")),
-                    "next_run_date": _parse_wcf_date(entry.get("NEW_RUNDATE")),
-                    "raw": entry,
+                    "due_date": entry.get("dueDate"),
+                    "next_run_date": None,
                 }
             )
         return rows
@@ -247,57 +318,318 @@ class SiyakhokhaApi:
         search_text: str = "",
         sort_order: str = "asc",
     ) -> dict[str, Any]:
-        query = urlencode(
-            {
-                "pageSize": page_size,
-                "pageNumber": page_number,
-                "searchText": search_text,
-                "sortOrder": sort_order,
+        """Return bill history from /api/mobile/billlist for every linked account.
+
+        The mobile endpoint returns all bills in one response, so paging is a
+        no-op: page 1 carries everything, later pages are empty.
+        """
+        if self._accounts is None:
+            self._refresh_accounts()
+        account_numbers = [
+            str(a.get("accountNumber") or "").strip()
+            for a in (self._accounts or [])
+        ]
+        account_numbers = [a for a in account_numbers if a]
+
+        all_rows: list[dict[str, Any]] = []
+        for acc in account_numbers:
+            try:
+                payload = self._mobile_json(
+                    "GET", f"/api/mobile/billlist?AccountNo={quote(acc, safe='')}"
+                )
+            except SiyakhokhaApiError:
+                continue
+            data = payload.get("data") if isinstance(payload, dict) else payload
+            rows = (data.get("rows") or []) if isinstance(data, dict) else (data or [])
+            for r in rows:
+                if not isinstance(r, dict):
+                    continue
+                all_rows.append(
+                    {
+                        "AccountNumber": r.get("accountNumber"),
+                        "IdentificationNumber": r.get("identificationNumber"),
+                        "BillDate": r.get("billDate"),
+                        "BillAmount": r.get("billAmount"),
+                        "DownloadLink": r.get("downloadLink"),
+                        "IsAgent": r.get("isAgent"),
+                    }
+                )
+
+        all_rows.sort(key=lambda x: str(x.get("BillDate") or ""), reverse=True)
+        if page_number > 1:
+            return {"rows": [], "total": len(all_rows)}
+        return {"rows": all_rows, "total": len(all_rows)}
+
+    # ------------------------------------------------------------------ #
+    # history (current mobile JSON API)
+    # ------------------------------------------------------------------ #
+
+    def _get_payment_history_payload(self) -> dict[str, Any]:
+        """Fetch and cache the combined mobile payment-history response."""
+        if self._payment_history_payload is None:
+            payload = self._mobile_json("GET", "/api/mobile/getpaymenthistory")
+            if not isinstance(payload, dict):
+                raise SiyakhokhaApiError(
+                    "Invalid response from /api/mobile/getpaymenthistory"
+                )
+            self._payment_history_payload = payload
+        return self._payment_history_payload
+
+    @staticmethod
+    def _status_summary(value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        return {
+            "Id": value.get("id"),
+            "Name": value.get("name"),
+            "Description": value.get("description"),
+            "Key": value.get("key"),
+        }
+
+    @staticmethod
+    def _account_summary(value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        return {
+            "Id": value.get("id"),
+            "AccountNumber": value.get("accountNumber"),
+            "AccountHolder": value.get("accountHolder"),
+            "Description": value.get("description"),
+            "AccountType": value.get("accountType"),
+        }
+
+    @classmethod
+    def _bank_account_summary(cls, value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        bank = value.get("bank")
+        bank_summary = None
+        if isinstance(bank, dict):
+            bank_summary = {
+                "Id": bank.get("id"),
+                "Name": bank.get("name"),
+                "Description": bank.get("description"),
+                "UniversalBranchCode": bank.get("uniBranchCode"),
             }
+        # Never expose the upstream full bankAccountNumber in HA attributes.
+        return {
+            "Id": value.get("id"),
+            "HiddenBankAccountNumber": value.get("hiddenBankAccountNumber"),
+            "ShowBankAccountNumber": value.get("showBankAccountNumber"),
+            "AccountStatus": value.get("accountStatus"),
+            "BranchCode": value.get("branchCode"),
+            "Bank": bank_summary,
+        }
+
+    @classmethod
+    def _debit_order_summary(cls, value: Any) -> dict[str, Any]:
+        row = value if isinstance(value, dict) else {}
+        return {
+            "Id": row.get("id"),
+            "AccountId": row.get("accountId"),
+            "Amount": row.get("amount"),
+            "BankAccountId": row.get("bankAccountId"),
+            "CustomerId": row.get("customerId"),
+            "IsActive": row.get("isActive"),
+            "IsBatch": row.get("isBatch"),
+            "IsRecurring": row.get("isRecurring"),
+            "StartDateTime": row.get("startDateTime"),
+            "StrikeDay": row.get("strikeDay"),
+            "Status": cls._status_summary(row.get("status")),
+            "Account": cls._account_summary(row.get("account")),
+            "BankAccount": cls._bank_account_summary(row.get("bankAccount")),
+        }
+
+    @staticmethod
+    def _payment_summary(value: Any) -> dict[str, Any]:
+        row = value if isinstance(value, dict) else {}
+        amount = (
+            row.get("amountPaid") if "amountPaid" in row else row.get("amount")
         )
-        text = self._request("GET", f"/Report/LoadOnlineBills?{query}")
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected bills response: {text[:240]}"
-            ) from exc
+        return {
+            "Id": row.get("id"),
+            "MetroAccountNumber": row.get("metroAccountNumber")
+            or row.get("accountNumber"),
+            "AmountPaid": amount,
+            "PaymentDateTime": row.get("paymentDateTime")
+            or row.get("createdDateTime"),
+            "ReconDateTime": row.get("reconDateTime"),
+            "PaymentType": row.get("paymentType") or row.get("type"),
+        }
+
+    @classmethod
+    def _batch_order_summary(cls, value: Any) -> dict[str, Any]:
+        row = value if isinstance(value, dict) else {}
+        return {
+            "Id": row.get("id"),
+            "BatchNumber": row.get("batchNumber"),
+            "BatchReference": row.get("batchReference"),
+            "CreatedDateTime": row.get("createdDateTime"),
+            "Status": cls._status_summary(row.get("status")),
+            "DebitOrder": cls._debit_order_summary(row.get("debitOrder")),
+        }
 
     def get_payment_history(self) -> dict[str, Any]:
-        token = self.ensure_account_token()
-        path = f"/Payment/LoadPaymentHistory?q={quote(unquote(token), safe='')}"
-        text = self._request("GET", path)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected payment history response: {text[:240]}"
-            ) from exc
+        payload = self._get_payment_history_payload()
+        rows = [
+            self._payment_summary(row)
+            for row in payload.get("paymentHistories") or []
+            if isinstance(row, dict)
+        ]
+        eft_rows = [
+            self._payment_summary(row)
+            for row in payload.get("eftPaymentHistories") or []
+            if isinstance(row, dict)
+        ]
+        masterpass_rows = [
+            self._payment_summary(row)
+            for row in payload.get("mpPaymentHistories") or []
+            if isinstance(row, dict)
+        ]
+        return {
+            "data": rows,
+            "eft_data": eft_rows,
+            "masterpass_data": masterpass_rows,
+            "total": len(rows),
+            "source": "/api/mobile/getpaymenthistory",
+        }
 
     def get_debit_orders(self) -> dict[str, Any]:
-        token = self.ensure_account_token()
-        path = f"/DebitOrder/LoadOrders?q={quote(unquote(token), safe='')}"
-        text = self._request("GET", path)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected debit order response: {text[:240]}"
-            ) from exc
+        payload = self._get_payment_history_payload()
+        rows = [
+            self._debit_order_summary(row)
+            for row in payload.get("debitOrderPaymentHistories") or []
+            if isinstance(row, dict)
+        ]
+        return {
+            "data": rows,
+            "total": len(rows),
+            "source": "/api/mobile/getpaymenthistory",
+        }
 
     def get_batch_orders(self) -> dict[str, Any]:
-        token = self.ensure_account_token()
-        path = f"/DebitOrder/LoadBatchOrders?q={quote(unquote(token), safe='')}"
-        text = self._request("GET", path)
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise SiyakhokhaApiError(
-                f"Unexpected batch order response: {text[:240]}"
-            ) from exc
+        payload = self._get_payment_history_payload()
+        rows = [
+            self._batch_order_summary(row)
+            for row in payload.get("batchDebitOrderPaymentHistories") or []
+            if isinstance(row, dict)
+        ]
+        return {
+            "data": rows,
+            "total": len(rows),
+            "source": "/api/mobile/getpaymenthistory",
+        }
+
+    def get_debit_order_context(self) -> dict[str, Any]:
+        """Build polling-safe debit-order choices from JSON API data only."""
+        payload = self._get_payment_history_payload()
+        debit_rows = [
+            row
+            for row in payload.get("debitOrderPaymentHistories") or []
+            if isinstance(row, dict)
+        ]
+
+        bank_accounts_by_id: dict[int, dict[str, Any]] = {}
+        for row in debit_rows:
+            bank = row.get("bankAccount")
+            if not isinstance(bank, dict):
+                continue
+            try:
+                bank_id = int(bank.get("id"))
+            except (TypeError, ValueError):
+                continue
+            summary = self._bank_account_summary(bank) or {}
+            bank_name = summary.get("Bank") or {}
+            bank_accounts_by_id[bank_id] = {
+                "id": bank_id,
+                "value": str(bank_id),
+                "label": " - ".join(
+                    str(part)
+                    for part in (
+                        bank_name.get("Name") if isinstance(bank_name, dict) else None,
+                        summary.get("HiddenBankAccountNumber"),
+                    )
+                    if part
+                )
+                or str(bank_id),
+                "selected": False,
+            }
+
+        municipal_accounts = []
+        for account in self.get_account_list():
+            try:
+                account_id = int(account.get("account_id"))
+            except (TypeError, ValueError):
+                continue
+            municipal_accounts.append(
+                {
+                    "id": account_id,
+                    "value": str(account_id),
+                    "label": str(
+                        account.get("description")
+                        or account.get("account_number")
+                        or account_id
+                    ),
+                    "selected": False,
+                }
+            )
+
+        latest = debit_rows[0] if debit_rows else {}
+        resolved_bank_id = latest.get("bankAccountId")
+        resolved_account_id = latest.get("accountId")
+        if resolved_bank_id is None and bank_accounts_by_id:
+            resolved_bank_id = next(iter(bank_accounts_by_id))
+        if resolved_account_id is None and municipal_accounts:
+            resolved_account_id = municipal_accounts[0]["id"]
+
+        for row in bank_accounts_by_id.values():
+            row["selected"] = row["id"] == resolved_bank_id
+        for row in municipal_accounts:
+            row["selected"] = row["id"] == resolved_account_id
+
+        return {
+            "source": "/api/mobile/getpaymenthistory + /api/mobile/accounts",
+            "portal_required_for_submission": True,
+            "bank_accounts": list(bank_accounts_by_id.values()),
+            "municipal_accounts": municipal_accounts,
+            "resolved": {
+                "bank_account_id": resolved_bank_id,
+                "account_id": resolved_account_id,
+                "strike_day": latest.get("strikeDay"),
+                "start_date": latest.get("startDateTime"),
+            },
+        }
+
+    # ------------------------------------------------------------------ #
+    # PDF download (portal session required)
+    # ------------------------------------------------------------------ #
+
+    def download_bill(self, download_token: str) -> bytes:
+        token = str(download_token).strip()
+        if not token or token.upper() == "UNPAYABLE":
+            raise SiyakhokhaApiError("Bill does not have a downloadable PDF token.")
+
+        encoded = quote(unquote(token), safe="")
+        for _attempt in range(2):
+            self._ensure_portal_session()
+            data = self._portal_request_bytes(
+                "GET", f"/Report/GenerateBill?q={encoded}"
+            )
+            if data.lstrip().startswith(b"%PDF"):
+                return data
+            # Portal session expired -> re-login and retry once.
+            self._portal_logged_in = False
+        raise SiyakhokhaApiError(
+            "PDF download returned a non-PDF response (portal session expired?)."
+        )
+
+    # ------------------------------------------------------------------ #
+    # submissions (portal session required, on-demand only)
+    # ------------------------------------------------------------------ #
 
     def get_single_debit_order_context(self) -> dict[str, Any]:
-        page = self._request("GET", "/DebitOrder")
+        self._ensure_portal_session()
+        page = self._portal_request("GET", "/DebitOrder")
 
         def _extract(name: str) -> str | None:
             m = re.search(
@@ -443,8 +775,9 @@ class SiyakhokhaApi:
                 "payload": {k: v for k, v in pairs},
             }
 
+        self._ensure_portal_session()
         body = urlencode(pairs).encode("utf-8")
-        text = self._request(
+        text = self._portal_request(
             "POST",
             "/DebitOrder",
             data=body,
@@ -457,7 +790,8 @@ class SiyakhokhaApi:
             return {"ok": True, "raw": text}
 
     def get_bulk_payment_context(self) -> dict[str, str]:
-        page = self._request("GET", "/DebitOrder/IndexBatchPayment")
+        self._ensure_portal_session()
+        page = self._portal_request("GET", "/DebitOrder/IndexBatchPayment")
 
         def _extract(name: str) -> str | None:
             m = re.search(
@@ -482,13 +816,41 @@ class SiyakhokhaApi:
         )
         bid = bank_match.group(1) if bank_match else _extract("BId")
 
-        strike_vals = re.findall(r"BatchstrikeDate\s*=\s*([0-9]+)", page)
-        dstrike = strike_vals[-1] if strike_vals else _extract("dStrike")
+        def _extract_js_int(name: str) -> int | None:
+            values = re.findall(
+                rf"\b{re.escape(name)}\s*=\s*([0-9]+)\s*;",
+                page,
+                re.IGNORECASE,
+            )
+            return int(values[-1]) if values else None
+
+        strike_day = _extract_js_int("BatchstrikeDate")
+        year = _extract_js_int("BatchYear")
+        month = _extract_js_int("BatchMonth")
+        day = _extract_js_int("BatchDay")
+        hour = _extract_js_int("BatchHour")
+        minute = _extract_js_int("BatchMinute")
+        second = _extract_js_int("BatchSec")
+        millisecond = _extract_js_int("BatchSSec")
+        batch_bool = _extract_js_int("BatchBool")
+
+        date_parts = (year, month, day, hour, minute, second, millisecond)
+        start_date = None
+        batch_reference = None
+        if all(value is not None for value in date_parts) and batch_bool is not None:
+            start_date = f"{year:04d}-{month:02d}-{day:02d}"
+            batch_reference = (
+                f".{year:04d}{month:02d}{day:02d}"
+                f"{hour:02d}{minute:02d}{second:02d}{millisecond:03d}"
+                f"{batch_bool}{strike_day}"
+            )
 
         context = {
             "CusId": cus_id,
             "BId": bid,
-            "dStrike": dstrike,
+            "dStrike": str(strike_day) if strike_day is not None else None,
+            "startDate": start_date,
+            "bat": batch_reference,
         }
 
         missing = [k for k, v in context.items() if not v]
@@ -523,16 +885,14 @@ class SiyakhokhaApi:
             [
                 ("CusId", context["CusId"]),
                 ("BId", context["BId"]),
-                ("dStrike", context["dStrike"]),
+                ("bat", context["bat"]),
+                ("startDate", context["startDate"]),
             ]
         )
 
-        # Format seen in live portal submissions: YYYYMMDDHHMMSS + "1" + dStrike
-        bat = datetime.now().strftime("%Y%m%d%H%M%S") + "1" + str(context["dStrike"])
-        pairs.append(("bat", bat))
-
+        self._ensure_portal_session()
         body = urlencode(pairs).encode("utf-8")
-        text = self._request(
+        text = self._portal_request(
             "POST",
             "/DebitOrder/BulkPayment",
             data=body,
@@ -544,14 +904,9 @@ class SiyakhokhaApi:
         except json.JSONDecodeError:
             return {"ok": True, "raw": text}
 
-    def download_bill(self, download_token: str) -> bytes:
-        token = str(download_token).strip()
-        if not token or token.upper() == "UNPAYABLE":
-            raise SiyakhokhaApiError("Bill does not have a downloadable PDF token.")
-
-        normalized = unquote(token)
-        encoded = quote(normalized, safe="")
-        return self._request_bytes("GET", f"/Report/GenerateBill?q={encoded}")
+    # ------------------------------------------------------------------ #
+    # tariff data (public ekurhuleni.gov.za documents) — unchanged
+    # ------------------------------------------------------------------ #
 
     def fetch_latest_public_tariff_data(self) -> dict[str, Any]:
         schedule = self._fetch_latest_tariff_document(

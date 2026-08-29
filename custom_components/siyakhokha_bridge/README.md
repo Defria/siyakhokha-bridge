@@ -29,9 +29,45 @@ Visual preview from the included dashboard examples:
 
 For the complete screenshot walkthrough and replication docs, see `../../examples/README.md`.
 
-This integration logs in to Siyakhokha, fetches the bills API, and exposes bill data as sensors.
+This integration reads Siyakhokha sensor data through the current **mobile JSON API**. It exposes
+bill, balance, profile, payment, debit-order, and batch-order data as Home Assistant entities while
+keeping the ASP.NET portal session lazy and outside normal polling.
 
-It also fetches payment/debit/batch-order APIs and supports once-off batch payment submit via Home Assistant service.
+It also supports once-off batch payment and single debit-order submission through explicit Home
+Assistant service calls.
+
+## How it talks to Siyakhokha
+
+The current API is authenticated with HTTP **Basic auth** and can be inspected at:
+
+- Swagger UI: `https://siyakhokha.ekurhuleni.gov.za/swagger`
+- Swagger 2.0 JSON: `https://siyakhokha.ekurhuleni.gov.za/swagger/docs/v1`
+
+| Call | Purpose |
+|---|---|
+| `GET /api/mobile/customer` | validate credentials and load the customer profile |
+| `GET /api/mobile/latestaccounts` | linked account display data, current balance, and due date |
+| `GET /api/mobile/accounts` | richer linked-account data and stable internal account IDs |
+| `GET /api/mobile/billlist?AccountNo=` | bill history and `downloadLink` tokens |
+| `GET /api/mobile/getpaymenthistory` | combined payment, debit-order, batch, EFT, and Masterpass history |
+
+The integration fetches the combined payment-history response once per refresh and splits it into
+the existing `payment_history`, `debit_orders`, and `batch_orders` dashboard models. It does not
+bootstrap an HTML `q` token and does not call the obsolete `LoadPaymentHistoryMobile`, `LoadOrders`,
+or `LoadBatchOrders` routes. Debit-order choices used by routine polling are also built from JSON;
+normal polling never logs into the portal or parses a portal form.
+
+A single ASP.NET portal session is created lazily only for features whose current JSON alternatives
+do not work reliably:
+
+- **PDF download** — `GET /Report/GenerateBill?q=<downloadLink>`. Since a token can already contain
+  percent encoding, the client decodes and URL-encodes it exactly once.
+- **Payment/debit-order submission** — the `submit_batch_payment` and
+  `submit_single_debit_order` services load current anti-CSRF/form context only when explicitly
+  requested.
+
+Normalized Home Assistant history attributes never expose the upstream full bank-account number;
+only masked and summary bank details are retained.
 
 ## Files to copy into Home Assistant
 
@@ -86,15 +122,15 @@ deleting the integration:
 - `sensor.last_batch_submit_status`
 
 ### Live Balance (new in 0.2.0)
-Sourced from `/DebitOrder/LoadAccountBatch` — this is the **current outstanding balance** as the portal sees it,
+Sourced from `/api/mobile/latestaccounts` — this is the **current outstanding balance** as the portal sees it,
 distinct from `sensor.latest_bill_amount` which reflects the most-recent statement.
 
 - `sensor.current_balance` — live portal balance (negative = credit, zero = settled, positive = due)
 - `sensor.balance_due_date`
-- `sensor.next_debit_run_date`
+- `sensor.next_debit_run_date` — not exposed by the mobile API; remains `None` (would require the portal session)
 
 ### Customer Profile (diagnostic, new in 0.2.0)
-Sourced from `/Profile/LoadAccounts`. Marked as `EntityCategory.DIAGNOSTIC`.
+Sourced from `/api/mobile/customer` (attached to each linked account). Marked as `EntityCategory.DIAGNOSTIC`.
 
 - `sensor.account_description`
 - `sensor.account_holder`
@@ -149,9 +185,8 @@ Example proxied URL format:
 
 `last_batch_submit_response` is exposed in sensor attributes for payment submit diagnostics.
 
-`batch_orders` is exposed in sensor attributes and loaded from:
-
-- `/DebitOrder/LoadBatchOrders?q=<token>`
+`batch_orders` is exposed in sensor attributes and is derived from the batch rows in the combined
+`/api/mobile/getpaymenthistory` response.
 
 Use this to verify submitted once-off batch payments and their latest statuses.
 

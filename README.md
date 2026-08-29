@@ -38,10 +38,31 @@ Visual preview from the included dashboard setup:
 
 For the full screenshot set and replication guide, see `examples/README.md`.
 
+## API-first architecture
+
+Normal polling uses only the current **mobile JSON API**, authenticated with HTTP **Basic auth**.
+The API can be inspected at:
+
+- Swagger UI: `https://siyakhokha.ekurhuleni.gov.za/swagger`
+- Swagger 2.0 JSON: `https://siyakhokha.ekurhuleni.gov.za/swagger/docs/v1`
+
+Account/profile data comes from `/api/mobile/customer`, `/api/mobile/latestaccounts`, and
+`/api/mobile/accounts`; bills come from `/api/mobile/billlist`. One call to
+`/api/mobile/getpaymenthistory` returns payment, debit-order, batch debit-order, EFT, and
+Masterpass histories. The integration splits that combined response into its existing dashboard
+models, so it no longer loads an HTML page to derive a `q` token or calls the old `Load*` routes.
+Routine polling also builds debit-order choices from JSON and does not fetch portal form context.
+
+A lazily-created ASP.NET portal session is retained only where the current JSON routes do not work
+reliably: statement PDFs (`/Report/GenerateBill`) and explicitly requested payment/debit-order
+submissions. PDF tokens may already be percent-encoded, so the client decodes and re-encodes each
+token exactly once before requesting it. Normalized Home Assistant attributes deliberately omit the
+upstream full bank-account number and retain only masked/summary bank details.
+
 ## What It Does
 
 - Fetches Siyakhokha municipal bills and historical bill rows.
-- Fetches **live account balance** (current portal balance, due date, next debit-run date).
+- Fetches **live account balance** (current portal balance, due date).
 - Fetches **customer profile** (holder, name, email, phone, physical address) as diagnostic sensors.
 - **Auto-discovers** linked municipal accounts at setup — single account picked automatically, multi-account setups get a dropdown.
 - Fetches payment history, debit orders, and batch orders.
@@ -82,8 +103,9 @@ For the full screenshot set and replication guide, see `examples/README.md`.
 
 ## Account Auto-Discovery
 
-After you enter your Siyakhokha username and password, the integration calls `/Profile/LoadAccounts`
-and auto-discovers all municipal accounts linked to your login.
+After you enter your Siyakhokha username and password, the integration calls the official
+**mobile JSON API** (`/api/mobile/latestaccounts`, Basic auth) and auto-discovers all municipal
+accounts linked to your login.
 
 - **One account linked**: it's selected automatically. No extra prompt.
 - **Multiple accounts linked**: you'll see a dropdown listing each account with its description and holder name.
