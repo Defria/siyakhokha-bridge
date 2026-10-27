@@ -660,8 +660,7 @@ views:
                 {% set date_raw = r.PaymentDateTime | default('—') | string %}
                 {% set amount_num = r.AmountPaid | default(0) | float(0) %}
                 {% set pay_type = r.PaymentType | default('—') %}
-                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
-                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                {% set date_fmt = date_raw[:10] if date_raw | regex_match('^[0-9]{4}-[0-9]{2}-[0-9]{2}') else date_raw %}
                 <tr>
                   <td align="left">{{ loop.index }}</td>
                   <td align="left">{{ date_fmt }}</td>
@@ -721,8 +720,7 @@ views:
                 {% for r in rows[:40] %}
                 {% if r is mapping %}
                 {% set date_raw = r.StartDateTime | default('—') | string %}
-                {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
-                {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+                {% set date_fmt = date_raw[:10] if date_raw | regex_match('^[0-9]{4}-[0-9]{2}-[0-9]{2}') else date_raw %}
                 {% set amount = r.Amount | default(0) | float(0) %}
                 {% set strike = r.StrikeDay | default('—') %}
                 {% set status_obj = r.Status | default({}) %}
@@ -1201,8 +1199,7 @@ views:
             {% set batch_ref = r.BatchReference | default(r.BatchNumber | default('—')) %}
             {% set s = r.Status if r.Status is mapping else {} %}
             {% set status_name = s.Name | default('—') %}
-            {% set ts_ms = date_raw | regex_replace('[^0-9]', '') | int(0) %}
-            {% set date_fmt = (ts_ms / 1000) | int | timestamp_custom('%Y-%m-%d', true) if ts_ms > 0 else date_raw %}
+            {% set date_fmt = date_raw[:10] if date_raw | regex_match('^[0-9]{4}-[0-9]{2}-[0-9]{2}') else date_raw %}
             <tr>
               <td align="left">{{ loop.index }}</td>
               <td align="left">{{ date_fmt }}</td>
